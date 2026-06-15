@@ -1,0 +1,904 @@
+================================================================================
+                    GAME DESIGN DOCUMENT (GDD) COMPLETO
+                  PROYECTO: "VELOCITY ZERO" (nombre de trabajo)
+        Videojuego móvil de velocidad y reflejos — Producción comercial
+================================================================================
+
+Documento elaborado por un equipo simulado de desarrollo AAA:
+Game Director · Lead Game Designer · Psicólogo de retención ·
+Diseñador de economía y progresión · Diseñador de monetización ética ·
+Diseñador UX/UI · Director de Arte · Productor · Especialista Unity Mobile ·
+Experto en hypercasual/casual.
+
+Versión: 1.0
+Fecha: 2026-06-14
+Plataformas objetivo: Google Play (Android) y App Store (iOS)
+Motor: Unity (LTS) · Orientación: Vertical (portrait) · Online opcional
+
+--------------------------------------------------------------------------------
+ÍNDICE
+--------------------------------------------------------------------------------
+1.  VISIÓN GENERAL DEL JUEGO
+2.  GAME DESIGN DOCUMENT (mecánicas y sistemas)
+3.  SISTEMA DE PROGRESIÓN
+4.  GAMIFICACIÓN Y PSICOLOGÍA
+5.  ECONOMÍA DEL JUEGO (con fórmulas)
+6.  PERSONAJES (24)
+7.  MUNDOS Y TEMÁTICAS (12)
+8.  DIRECCIÓN ARTÍSTICA
+9.  UX/UI Y WIREFRAMES
+10. ESTRATEGIA DE RETENCIÓN (D1/D7/D30/D90)
+11. MONETIZACIÓN ÉTICA
+12. ROADMAP DE DESARROLLO
+13. IMPLEMENTACIÓN EN UNITY
+14. PROMPTS DE IA PARA ASSETS
+15. RIESGOS, MEJORAS Y VERSIÓN DEFINITIVA
+
+
+================================================================================
+1. VISIÓN GENERAL DEL JUEGO
+================================================================================
+
+NOMBRE DEL JUEGO
+----------------
+Principal: "VELOCITY ZERO"
+Alternativas evaluadas: "ZONA CERO", "HYPERDRIVE", "ZERO LIMIT", "PULSE RUNNER".
+Recomendación del equipo: "VELOCITY ZERO" — corto, internacional, pronunciable
+en cualquier idioma, evoca velocidad pura y el concepto de "punto cero" desde
+el que siempre se reinicia con mejoras. (Verificar disponibilidad de marca y
+nombre en ambas tiendas antes de cierre).
+
+CONCEPTO PRINCIPAL
+------------------
+Velocity Zero es un endless runner vertical de reflejos puros donde la VELOCIDAD
+es la mecánica central, no un adorno. El jugador controla a un "Corredor" que
+acelera de forma continua e implacable. A diferencia de los runners clásicos,
+aquí la velocidad NUNCA se reinicia del todo: cada partida conquista "umbrales
+de velocidad" que se guardan de forma permanente, de modo que en partidas
+futuras el jugador arranca desde la velocidad más alta que haya dominado.
+
+El gancho emocional: "Nunca empiezas de cero. Cada muerte te deja más rápido."
+
+DIFERENCIADORES FRENTE A SUBWAY SURFERS
+---------------------------------------
+1. VELOCIDAD PERSISTENTE (núcleo único): en Subway Surfers cada partida empieza
+   igual; aquí la velocidad base sube permanentemente. El progreso es tangible
+   en cada milisegundo de juego.
+2. CHECKPOINTS DE VELOCIDAD PERMANENTES: el jugador "ancla" hitos (ej. 120 km/h,
+   200 km/h) que se convierten en su nuevo punto de partida. Anti-frustración.
+3. SISTEMA DE "ZONA" (estado de flow): al superar la velocidad máxima previa, se
+   entra en "ZONA CERO", un estado de cámara lenta perceptual + multiplicadores,
+   recompensando el dominio sobre la suerte.
+4. CONTROL DE 1 DEDO basado en CARRILES + GESTOS (no swipe genérico): tap para
+   cambiar de carril instantáneo, hold para frenar parcial (recurso limitado),
+   doble tap para dash. Techo de habilidad alto.
+5. MUERTE CON SIGNIFICADO: la derrota no borra el avance; alimenta la meta-
+   progresión. Reduce el dolor de perder (loss aversion bien gestionada).
+6. ESTÉTICA NEÓN-SINTÉTICA + REACTIVIDAD MUSICAL: el mundo pulsa con la música y
+   con la velocidad. A más velocidad, más intensidad audiovisual (recompensa
+   sensorial creciente).
+
+PÚBLICO OBJETIVO
+----------------
+- Primario: 16-34 años, jugadores casual/midcore de móvil que buscan sesiones
+  cortas (1-5 min) y "una partida más". Afinidad con runners, hyper-arcade y
+  juegos de ritmo. Mayoría smartphone gama media.
+- Secundario: 13-15 (con controles familiares) y 35-45 nostálgicos de arcade.
+- Geografía de lanzamiento: global; soft-launch en Filipinas, Brasil, México,
+  India (CPI bajo) para tunear retención antes del lanzamiento mundial.
+- Motivaciones (taxonomía Quantic Foundry): Excitement (velocidad/acción),
+  Challenge (dominio), Completion (coleccionismo), Power (progresión).
+
+LOOPS DE JUEGO
+--------------
+LOOP PRINCIPAL (segundos a 1-5 min):
+  Iniciar carrera -> esquivar/reaccionar -> acelerar -> recoger monedas/orbes ->
+  alcanzar nuevo umbral de velocidad -> (entrar en ZONA) -> morir o anclar
+  checkpoint -> ver recompensa inmediata -> "Reintentar" (1 toque).
+
+LOOP SECUNDARIO (sesión, 5-20 min):
+  Acumular monedas -> completar misiones diarias -> gastar en personajes/mejoras
+  -> probar nuevo personaje/habilidad -> mejorar marca personal -> abrir cofre/
+  recompensa de anuncio -> subir nivel de cuenta.
+
+LOOP DE LARGO PLAZO (semanas a meses):
+  Desbloquear mundos -> coleccionar 24 personajes y sus evoluciones -> avanzar
+  pase de temporada -> participar en eventos semanales -> subir de liga en
+  ranking -> alcanzar Prestigio -> reiniciar con bonus permanentes y cosméticos
+  exclusivos -> perseguir mundos/personajes "míticos" de eventos.
+
+
+================================================================================
+2. GAME DESIGN DOCUMENT (MECÁNICAS Y SISTEMAS)
+================================================================================
+
+MECÁNICAS PRINCIPALES
+---------------------
+- Aceleración continua: la velocidad aumenta sola con el tiempo; el jugador no
+  controla acelerar, controla SOBREVIVIR a la aceleración.
+- Esquiva por carriles: pista de 3 carriles (ampliable a 5 en mundos avanzados).
+- Reacción a obstáculos: ventanas de reacción que se acortan con la velocidad.
+- Umbral de velocidad / ZONA: superar la velocidad récord activa estado especial.
+- Anclaje de checkpoint: a ciertos hitos puedes "anclar" para no perder esa base.
+
+MECÁNICAS SECUNDARIAS
+---------------------
+- Dash (doble tap): impulso corto que atraviesa o destruye ciertos obstáculos;
+  consume energía.
+- Freno controlado (hold): reduce velocidad temporalmente para sortear tramos
+  densos; recurso limitado, penaliza puntuación si se abusa.
+- Salto/Deslizamiento (swipe arriba/abajo): para obstáculos altos/bajos.
+- Power-ups recogibles: Imán, Escudo, Multiplicador x2, Ralentizador, Cohete.
+- Orbes de ZONA: rellenan la barra de ZONA para activar el estado de flow.
+- Cadena de "near-miss": pasar muy cerca de un obstáculo sin chocar suma combo.
+
+SISTEMA DE MOVIMIENTO
+---------------------
+- Controles de 1 dedo (todo accesible con el pulgar, modo portrait):
+    Tap izquierda/derecha o swipe lateral -> cambio de carril (instantáneo,
+    con lerp de 0.08-0.12 s para sensación responsiva pero no teletransporte).
+    Swipe arriba -> salto. Swipe abajo -> deslizar.
+    Doble tap -> dash. Hold -> freno controlado.
+- Snapping a carril con asistencia (coyote time de 60-90 ms) para perdonar
+  inputs ligeramente tardíos sin trivializar.
+- "Input buffering": registra el último input 120 ms antes para que nunca se
+  sienta injusto a alta velocidad.
+
+SISTEMA DE OBSTÁCULOS
+---------------------
+- Tipos: estáticos (bloques), dinámicos (cruzan carriles), de altura (saltar),
+  bajos (deslizar), de tiempo (puertas que abren/cierran), de patrón (requieren
+  secuencia), perseguidores (presión por detrás).
+- Generación por "chunks" (segmentos prefabricados) con dificultad etiquetada
+  (1-10). Se ensamblan proceduralmente respetando reglas de "siempre existe una
+  solución alcanzable a la velocidad actual" (validación de solvencia).
+- Densidad y variedad escalan con la velocidad y el mundo.
+- Telegrafía: todo obstáculo se anuncia visual/sonoramente con antelación
+  proporcional a la velocidad (justicia percibida = retención).
+
+SISTEMA DE VELOCIDAD (corazón del juego)
+----------------------------------------
+- Velocidad base persistente (Vbase): la mayor velocidad anclada por el jugador.
+- Velocidad actual (V): empieza en Vbase y crece durante la carrera.
+- Curva de aceleración (suave, evita picos injustos):
+      V(t) = Vbase + Amax * (1 - e^(-t / Tau))
+  donde Amax = ganancia máxima de velocidad de la sesión, Tau = constante de
+  tiempo (ajustada por mundo). Crecimiento rápido al inicio y asintótico, que
+  luego se "rompe" en ZONA para picos controlados.
+- Conversión a sensación: FOV de cámara, motion blur, screen-shake sutil y
+  pitch de audio escalan con V (ver Dirección Artística).
+
+SISTEMA DE DIFICULTAD DINÁMICA (DDA)
+------------------------------------
+- Objetivo: mantener al jugador en el "canal de flow" (ni aburrido ni frustrado).
+- Señal de habilidad del jugador (SkillRating) actualizada por sesión:
+      SkillRating += k * (rendimiento - expectativa)
+  (modelo tipo Elo simplificado). Rendimiento = tiempo sobrevivido y near-misses.
+- DDA ajusta: densidad de obstáculos, frecuencia de power-ups, longitud de tramos
+  "respiro" y tasa de aceleración Amax. Límites duros para evitar que el DDA se
+  perciba como "el juego me castiga por jugar bien" (anti-rubber-banding visible).
+- Mecanismo de "respiro garantizado": tras X near-misses seguidos, inyecta un
+  tramo de menor densidad + power-up (recompensa el riesgo, evita fatiga).
+
+SISTEMA DE PUNTUACIÓN
+---------------------
+- Score base por distancia: Score += V * dt * MundoMult.
+- Bonus por near-miss, por orbes, por power-ups encadenados.
+- Score final = (DistanciaScore + Bonus) * ComboMult * ZonaMult.
+- Marca personal (best run) y ranking global/ligas por temporada.
+
+SISTEMA DE COMBOS
+-----------------
+- Combo sube con: near-misses, recoger monedas sin chocar, no usar freno.
+- Combo decae con el tiempo si no se mantiene la acción (timer de 3-4 s).
+- Multiplicador de combo: ComboMult = 1 + min(combo, comboCap) * 0.05
+  (cap configurable por mundo, p. ej. 20 -> x2.0; mundos altos cap mayor).
+- Romper combo no penaliza puntuación ya ganada (refuerzo positivo), solo
+  reinicia el multiplicador (motiva recuperarlo).
+
+SISTEMA DE RECOMPENSAS
+----------------------
+- Inmediatas (post-carrera): monedas = f(distancia, combo, zona), XP de cuenta,
+  progreso de misiones, fragmentos de personaje.
+- Recompensas variables (ver Gamificación): cofres con rareza, "ruleta" diaria.
+- Multiplicador opcional por anuncio recompensado (x2 monedas, ético y opt-in).
+- Recompensa de "primer intento del día" (boost de monedas) para gatillar D1.
+
+
+================================================================================
+3. SISTEMA DE PROGRESIÓN
+================================================================================
+
+Filosofía: "Pérdida cero estructural". El jugador siempre cierra cada sesión con
+MÁS de lo que empezó. La progresión se reparte en 3 ejes: VELOCIDAD (skill),
+COLECCIÓN (contenido) y CUENTA (meta).
+
+3.1 CHECKPOINTS PERMANENTES (de velocidad)
+------------------------------------------
+- Cada cierto hito de velocidad (ej. cada 20 km/h), si lo SUPERAS y sobrevives
+  un mínimo dentro de ese tramo, se desbloquea un "Ancla de Velocidad".
+- Una vez anclada, futuras partidas pueden INICIAR desde ese umbral (el jugador
+  elige el ancla de inicio entre las conquistadas; arrancar más alto = más score
+  y recompensas, pero más difícil).
+- POR QUÉ RETIENE: elimina la sensación de "volver a empezar"; convierte la
+  muerte en progreso. Es la materialización de "nunca pierdes tu avance".
+
+3.2 GUARDADOS PROGRESIVOS
+-------------------------
+- Autoguardado en la nube (Cloud Save) + local. El estado de anclas, colección,
+  monedas, misiones y pase se sincroniza.
+- "Banco de progreso parcial": incluso una mala carrera aporta fragmentos/XP.
+- POR QUÉ RETIENE: seguridad psicológica; el jugador confía en que su tiempo
+  invertido está protegido (reduce churn por miedo a perder datos).
+
+3.3 PRESTIGIO
+-------------
+- Al alcanzar el nivel de cuenta máximo (o conquistar todas las anclas de un
+  "tier"), el jugador puede "PRESTIGIAR": reinicia ciertos contadores a cambio
+  de un bonus permanente (ej. +2% monedas globales por estrella de prestigio)
+  y un cosmético/insignia exclusivo no comprable.
+- Escalable: cada prestigio cuesta más pero da insignia de mayor rango (I, II,
+  III... estilos de marco/efecto).
+- POR QUÉ RETIENE: ofrece meta de muy largo plazo y estatus social; los "end-
+  gamers" tienen siempre una zanahoria. Refuerza identidad ("soy Prestigio V").
+
+3.4 NIVELES DE CUENTA
+---------------------
+- XP por carrera, misiones y eventos. Curva: XP(n) = 100 * n^1.5 (redondeado).
+- Cada nivel da recompensa (monedas, fragmentos, a veces gema premium gratis).
+- Hitos cada 5/10 niveles desbloquean features o cosméticos.
+- POR QUÉ RETIENE: progreso garantizado independiente de la habilidad; incluso
+  jugadores poco hábiles avanzan y se sienten recompensados.
+
+3.5 MISIONES
+------------
+- Diarias (3): rotan cada 24 h (ej. "haz 30 near-misses", "alcanza ZONA 2 veces",
+  "recoge 300 monedas"). Recompensa en monedas + XP + puntos de pase.
+- Semanales (5-7): objetivos mayores, recompensa mayor.
+- POR QUÉ RETIENE: dan dirección y razón para volver cada día; objetivos claros
+  y alcanzables = bucles de logro frecuentes.
+
+3.6 LOGROS
+----------
+- Permanentes, de un solo cumplimiento (ej. "alcanza 300 km/h", "colecciona 10
+  personajes", "1.000.000 de score"). Recompensa única (gemas/cosmético).
+- POR QUÉ RETIENE: metas de coleccionismo y dominio; sensación de "checklist"
+  satisfactoria; gancho para completistas.
+
+3.7 DESAFÍOS DIARIOS
+--------------------
+- Una carrera con regla especial cada día (ej. "sin freno", "carril doble",
+  "obstáculos invertidos"). Un intento gratis + reintentos por anuncio/gema.
+- Recompensa fija + ranking diario del desafío.
+- POR QUÉ RETIENE: novedad diaria, rompe la monotonía, motivo concreto de visita.
+
+3.8 EVENTOS SEMANALES
+---------------------
+- Tema rotativo (mundo especial, personaje invitado, modificadores). Track de
+  recompensas por puntos de evento, con un personaje/cosmético exclusivo en la
+  cima (FOMO ético: avisado y recurrente, no manipulador).
+- POR QUÉ RETIENE: contenido fresco recurrente, picos de actividad, razón para
+  reengancharse cada semana; alimenta la sensación de "juego vivo".
+
+3.9 RECOMPENSAS POR RETORNO (Login / comeback)
+----------------------------------------------
+- Calendario de 7 días con recompensas crecientes (día 7 = personaje/gemas).
+- Bono de regreso: si el jugador estuvo ausente >X días, recibe un paquete de
+  bienvenida (monedas + boost temporal). Anti-churn.
+- "Racha" de días consecutivos con multiplicador creciente (cap razonable).
+- POR QUÉ RETIENE: ancla el hábito diario (gatillo + recompensa = bucle de
+  hábito), y recupera jugadores dormidos sin castigarlos.
+
+RESUMEN — CÓMO ENCAJA TODO
+--------------------------
+El jugador hábil progresa por VELOCIDAD/anclas; el menos hábil por CUENTA/
+misiones; el coleccionista por PERSONAJES/MUNDOS; el competitivo por LIGAS/
+eventos; el de muy largo plazo por PRESTIGIO. Nadie se queda sin una vía de
+avance perceptible, lo que minimiza el churn por estancamiento.
+
+
+================================================================================
+4. GAMIFICACIÓN Y PSICOLOGÍA
+================================================================================
+
+(Diseño ético: usamos principios de motivación intrínseca y refuerzo positivo;
+EVITAMOS patrones oscuros — sin presión engañosa, sin pérdida punitiva, sin
+loot boxes de pago opacas para menores.)
+
+4.1 DOPAMINA Y CICLOS DE RECOMPENSA
+- Micro-recompensas constantes: monedas, partículas, sonidos de "ping" en cada
+  near-miss y orbe. Feedback audiovisual inmediato a cada acción correcta.
+- "Juicy feedback": screen-shake, hit-stop, flashes y SFX satisfactorios.
+- Cierre de partida SIEMPRE con animación de ganancia (contador que sube).
+
+4.2 CURIOSIDAD
+- Siluetas de personajes/mundos por desbloquear ("¿qué hay detrás?").
+- Cofres con contenido oculto hasta abrir. Teasers de eventos próximos.
+- "Próximo desbloqueo en X" siempre visible (mete de proximidad / goal-gradient).
+
+4.3 RECOMPENSAS VARIABLES (ratio variable, el refuerzo más potente)
+- Cofres con tabla de rareza (común/raro/épico/mítico) y probabilidades CLARAS
+  y publicadas (transparencia = ética + cumplimiento de tiendas).
+- Ruleta diaria gratis. Drops de fragmentos con probabilidad.
+- Importante: variabilidad SOLO en recompensas gratuitas/de juego; las compras
+  de dinero real son siempre DETERMINISTAS (sabes qué compras). Evita gambling.
+
+4.4 SENSACIÓN DE PROGRESO
+- Barras por todas partes (XP, pase, misión, colección) con animación de avance.
+- "Goal-gradient effect": al acercarse a una meta, mostrar progreso casi-completo
+  para incentivar el último empujón.
+- Anclas de velocidad como prueba visible y permanente de mejora.
+
+4.5 COLECCIONISMO
+- 24 personajes + evoluciones, 12 mundos, cosméticos, insignias de prestigio.
+- "Álbum" / Colección con porcentaje completado y recompensas por sets.
+- Personajes míticos de evento = piezas raras codiciadas (estatus).
+
+4.6 DOMINIO DE HABILIDADES (mastery)
+- Techo de habilidad alto: dash, freno, near-miss chaining, gestión de ZONA.
+- Curva de aprendizaje legible: cada muerte enseña ("casi").
+- Marcas personales y ligas premian al que mejora, no solo al que paga.
+- Tutoriales contextuales y "ghost" de tu mejor carrera para batirte a ti mismo.
+
+CÓMO MANTENER AL JUGADOR ENGANCHADO DURANTE MESES
+-------------------------------------------------
+- Cadencia de contenido: evento semanal + temporada mensual de pase + mundo/
+  personaje nuevo cada 4-6 semanas (roadmap post-lanzamiento).
+- Variedad de metas para distintos perfiles (skill, colección, social, meta).
+- Hábito diario reforzado (login, misiones, desafío) sin volverlo obligación
+  ansiosa (recompensas se acumulan, no se "pierden" agresivamente).
+- Sorpresa y novedad regulares (recompensas variables + eventos temáticos).
+- Pertenencia social: ligas, ranking de amigos, compartir clips de récord.
+
+
+================================================================================
+5. ECONOMÍA DEL JUEGO (CON FÓRMULAS)
+================================================================================
+
+5.1 MONEDAS
+- MONEDA BLANDA — "Chispas" (Sparks): se gana jugando, en misiones, logros,
+  cofres. Sirve para: comprar/mejorar personajes, comprar power-ups consumibles,
+  abrir cofres comunes, subir niveles de habilidad.
+- MONEDA PREMIUM — "Núcleos" (Cores): se gana en pequeñas cantidades gratis
+  (logros, niveles, eventos) y se compra con dinero real. Sirve para: cosméticos
+  exclusivos, pase de temporada premium, acelerar (no saltar) progresos,
+  personajes especiales. NUNCA da ventaja P2W de gameplay.
+
+5.2 RECOMPENSAS (ganancia de Chispas por carrera)
+   Sparks_run = floor( (Distancia / 10) * ComboMultProm * (1 + 0.25*ZonaCount) )
+   - Distancia en metros; ComboMultProm = combo medio de la carrera; ZonaCount =
+     veces que se entró en ZONA.
+   - Bonus por anuncio recompensado: x2 (opt-in).
+   - Misión diaria: +150 a +400 Sparks. Semanal: +1000 a +3000.
+
+5.3 COSTOS (ejemplos de tabla; balanceables en soft-launch)
+   - Personaje común: 1.500 Sparks. Raro: 8.000. Épico: 25.000 (o fragmentos).
+   - Mejora de personaje nivel n: Costo(n) = 200 * n^1.6  (Sparks)
+   - Power-up consumible (x1): 300 Sparks.
+   - Cofre común: 1.000 Sparks. Cofre raro: 75 Cores o evento.
+   - Reroll de misión: 20 Cores o 1 anuncio.
+
+5.4 BALANCE ECONÓMICO (objetivo de "sink/source")
+   - Fuentes (sources): carreras, misiones, logros, login, eventos, anuncios.
+   - Sumideros (sinks): personajes, mejoras, cosméticos, cofres, rerolls.
+   - Regla de salud económica: para un jugador F2P medio, desbloquear el
+     SIGUIENTE personaje deseado debe llevar 2-4 días de juego moderado (≈3-4
+     sesiones), nunca instantáneo (sin meta) ni eterno (frustración).
+   - Inflación controlada: costos crecen con exponente >1 (n^1.6) para que las
+     Chispas tardías tengan dónde gastarse (evita acumulación inútil).
+
+5.5 FÓRMULAS ESCALABLES CLAVE
+   - XP de cuenta:           XP(n)        = 100 * n^1.5
+   - Mejora de personaje:    Costo(n)     = 200 * n^1.6
+   - Multiplicador de combo: ComboMult    = 1 + min(combo, cap) * 0.05
+   - Velocidad de sesión:    V(t)         = Vbase + Amax*(1 - e^(-t/Tau))
+   - Score:                  Score        = (Dist*Vfactor + Bonus) * ComboMult * ZonaMult
+   - Recompensa de pase:     RewardTier(t)= base * (1 + 0.12*t)   [t = nivel de pase]
+   - Probabilidad de cofre:  P(rareza) publicada (ej. Común 70 / Raro 22 /
+                             Épico 6.5 / Mítico 1.5 %), con "pity timer":
+                             garantiza Épico+ cada 20 aperturas sin uno.
+
+5.6 PRINCIPIOS DE ECONOMÍA ÉTICA
+   - Probabilidades publicadas y pity timer (anti-frustración, cumple normativa).
+   - Compras de dinero real SIEMPRE deterministas.
+   - Sin "energía" que bloquee jugar (no pay-to-play). Sesiones ilimitadas.
+   - Anuncios solo recompensados y/o intersticiales espaciados (frecuencia capada).
+
+
+================================================================================
+6. PERSONAJES (24)
+================================================================================
+
+RAREZAS: Común (C), Raro (R), Épico (E), Legendario (L), Mítico (M, solo evento).
+Cada personaje tiene una HABILIDAD PASIVA única (sin P2W; son sidegrades/estilos,
+balanceadas para no dar ventaja decisiva, sino variar el estilo de juego).
+EVOLUCIONES: cada personaje evoluciona en 3 etapas (Base -> Evo1 -> Evo2) con
+fragmentos + Sparks, mejorando VISUAL y reforzando ligeramente su pasiva.
+
+DESBLOQUEO: tienda (Sparks/Cores), fragmentos en cofres, recompensas de nivel,
+pase de temporada, eventos.
+
+  #  NOMBRE            RAREZA  HABILIDAD ÚNICA (pasiva)                 DESBLOQUEO
+  -- ----------------- ------- ---------------------------------------- ----------
+  1  Pulse (inicial)   C       +5% duración de ZONA                     Default
+  2  Dot               C       +1 carril de tolerancia coyote-time      Tienda
+  3  Bolt              C       Dash recarga 10% más rápido              Tienda
+  4  Vera              C       +5% Sparks por carrera                   Nivel 3
+  5  Kibo              C       Imán dura +20%                           Tienda
+  6  Nyx               R       Escudo extra cada 60s sin chocar         Tienda
+  7  Rasp              R       Near-miss da +50% combo                  Cofre/Frag
+  8  Lumen             R       ZONA carga 15% más rápido                Tienda
+  9  Tora              R       Freno consume 25% menos                  Nivel 8
+  10 Volt              R       +1 dash extra encadenable                Cofre/Frag
+  11 Echo              E       Revive 1 vez/carrera (cooldown largo)    Tienda(Cores)
+  12 Saira             E       Multiplicador base +0.2 al combo cap     Cofre/Frag
+  13 Onyx              E       ZONA otorga x1.5 score adicional         Pase temporada
+  14 Halo              E       Power-ups duran +30%                     Tienda(Cores)
+  15 Kade              E       Empieza cada carrera con Escudo          Cofre/Frag
+  16 Ignis             L       ZONA "encadenable": no se corta al chocar 1 vez  Logro
+  17 Aurora            L       +10% Sparks y +10% XP                    Pase premium
+  18 Zephyr            L       Velocidad base inicial +1 ancla gratis   Evento/Logro
+  19 Specter           L       Atraviesa 1 obstáculo cada 20s           Cofre raro
+  20 Nova              L       Combo no decae durante ZONA              Logro élite
+  21 Chronos           M       Ralentiza tiempo 1s al borde de chocar   Evento (mítico)
+  22 Seraph            M       Doble recompensa de orbes de ZONA        Evento (mítico)
+  23 Vortex            M       Dash destruye obstáculos en línea        Evento (mítico)
+  24 Zero (mascota)    M       Combina 2 pasivas de personajes poseídos Evento final/Prestigio
+
+Notas de balance:
+- Las pasivas Míticas son "vistosas" pero con cooldowns/condiciones que evitan
+  romper el juego; su valor es mayormente de estatus y estilo.
+- Toda ventaja de habilidad de personaje es alcanzable F2P con tiempo; los Cores
+  solo aceleran o dan cosmética.
+
+
+================================================================================
+7. MUNDOS Y TEMÁTICAS (12)
+================================================================================
+
+Cada mundo cambia paleta, obstáculos exclusivos, música y "feel" de velocidad.
+Progresión visual: de limpio/legible (mundos iniciales) a intenso/abstracto
+(mundos avanzados). Se desbloquean por nivel de cuenta + hito de velocidad.
+
+  #  MUNDO            AMBIENTACIÓN              OBSTÁCULO EXCLUSIVO         MÚSICA (estilo)
+  -- ---------------- ------------------------- -------------------------- ------------------
+  1  Neon Grid        Rejilla neón base/tutor.  Bloques de luz             Synthwave suave
+  2  Sky Tunnel       Túnel de cielo/nubes      Aros que cierran           Electro chill
+  3  Data Stream      Ciberespacio/código       Paquetes de datos móviles  Glitch-hop
+  4  Magma Core       Volcán tecnológico        Géiseres de lava (timing)  Industrial/DnB
+  5  Frost Line       Hielo/velocidad resbal.   Placas deslizantes         Cold synth
+  6  Storm Deck       Tormenta eléctrica        Rayos telegrafiados        Darksynth
+  7  Aqua Drift       Submarino/tubos de agua   Corrientes que empujan     Liquid DnB
+  8  Mecha City       Metrópolis robótica       Brazos mecánicos cruzando  Big-beat
+  9  Void Sector      Espacio profundo/gravedad Zonas de gravedad alterada Ambient techno
+  10 Mirage           Desierto/ilusiones        Obstáculos "falsos"        Desert synth
+  11 Quantum          Realidad fracturada       Carriles que se reordenan  IDM/experimental
+  12 Zona Cero        Estado puro de ZONA       Todo combinado, x velocidad Climax épico
+
+Progresión visual y de dificultad:
+- Mundos 1-3: enseñar y enganchar (legibilidad máxima, ritmo medio).
+- Mundos 4-7: introducir mecánicas exclusivas (timing, físicas).
+- Mundos 8-11: combinaciones complejas, alta velocidad, alto skill.
+- Mundo 12 (Zona Cero): "boss world" de prestigio, recompensas máximas.
+
+
+================================================================================
+8. DIRECCIÓN ARTÍSTICA
+================================================================================
+
+ESTILO GRÁFICO IDEAL
+- "Neón-sintético minimalista 3D": geometría limpia, materiales emisivos, glow,
+  bloom controlado. Bajo recuento de polígonos (móvil) con impacto visual alto
+  vía iluminación y postprocesado. Legibilidad SIEMPRE por encima del adorno
+  (el obstáculo debe leerse en <100 ms a alta velocidad).
+- Referencias de estilo: estética synthwave/outrun, "Audiosurf", "Thumper",
+  "Race the Sun", el minimalismo de "Alto's Odyssey" aplicado a velocidad.
+
+PALETA DE COLORES
+- Base oscura (negro azulado #0B0E1A) para contraste y ahorro de batería (OLED).
+- Acentos neón por mundo: cian (#00E5FF), magenta (#FF2EA6), violeta (#7A5CFF),
+  lima (#9CFF2E), ámbar (#FFB020). Cada mundo "posee" 1-2 acentos dominantes.
+- ZONA: shift a paleta saturada + viñeta cromática; alto contraste.
+- Regla: obstáculos en color de PELIGRO consistente (ej. rojo/naranja) en todos
+  los mundos para aprendizaje universal; decorado usa el color del mundo.
+
+UI (lenguaje visual)
+- Estilo "glassmorphism" sutil + neón: paneles semitransparentes, bordes
+  luminosos, tipografía geométrica sans (ej. estilo Eurostile/Exo). Iconografía
+  lineal con relleno emisivo. Animaciones de UI con ease-out rápidas.
+
+EFECTOS (VFX)
+- Estela de velocidad, partículas de orbes, trail del personaje, shockwave al
+  entrar en ZONA, hit-stop + flash al chocar, partículas de monedas magnetizadas.
+- Postprocesado: bloom, motion blur radial (escala con V), aberración cromática
+  en ZONA, viñeta dinámica, chromatic speed-lines.
+
+ANIMACIONES
+- Personaje: idle de carrera, cambio de carril (lean), dash (squash&stretch),
+  salto/deslizar, muerte (desintegración en partículas, no gore).
+- Cámara: leve FOV-kick al acelerar, tilt en curvas, slow-mo perceptual en ZONA.
+- UI: contadores que "cuentan", barras que se llenan con overshoot, cofres con
+  anticipación + recompensa.
+
+
+================================================================================
+9. UX/UI Y WIREFRAMES (descriptivos)
+================================================================================
+
+PRINCIPIOS UX
+- "Play en 1 toque": desde abrir app a correr en <5 s. Botón JUGAR gigante.
+- Todo accesible con el pulgar (portrait). Texto mínimo, iconos claros.
+- Onboarding invisible: enseña jugando (primeros obstáculos guiados).
+
+9.1 MENÚ PRINCIPAL (wireframe)
+  +------------------------------------------+
+  | [Perfil/Nivel]        [Chispas] [Cores]  |  <- barra superior
+  |                                          |
+  |            PERSONAJE 3D (rota)           |  <- centro, hero
+  |                                          |
+  |        ====  [ JUGAR ]  ====             |  <- CTA principal (grande)
+  |  selector ancla de velocidad ▲inicio▼    |
+  |                                          |
+  | [Personajes][Tienda][Pase][Eventos][Misiones] | <- nav inferior
+  +------------------------------------------+
+
+9.2 HUD (en carrera) — mínimo y no intrusivo
+  +------------------------------------------+
+  | Vel: 142 km/h     Score: 12,340   x3.5 ▣ |  <- top: velocidad/score/combo
+  |                                          |
+  |            [ ZONA ▓▓▓▓░░░ ]               |  <- barra de ZONA (centro-top)
+  |                                          |
+  |                                          |
+  |     (carriles + obstáculos)              |
+  |                                          |
+  |  [Dash●]                      [Freno◐]   |  <- esquinas inferiores opcional
+  +------------------------------------------+
+  (Controles principales por gesto; botones grandes solo como apoyo/accesibilidad.)
+
+9.3 PANTALLA DE DERROTA (Game Over) — clave anti-frustración
+  +------------------------------------------+
+  |          ¡CASI! (no "perdiste")          |
+  |   Velocidad máx: 188 km/h (NUEVO RÉCORD!)|  <- celebra el avance
+  |   +1 ANCLA DESBLOQUEADA  ▲                |
+  |   Distancia 1.240m   Score 84,500        |
+  |   Recompensa: +320 Chispas   +120 XP     |
+  |                                          |
+  |   [ ▶ x2 Recompensa (anuncio) ]          |  <- opt-in
+  |   [ REINTENTAR ]      [ Menú ]           |  <- reintentar destacado
+  +------------------------------------------+
+
+9.4 PANTALLA DE RECOMPENSAS (cofre/misión/pase)
+  +------------------------------------------+
+  |        COFRE ÉPICO  (anticipación)       |
+  |         [animación de apertura]          |
+  |   -> Fragmento de Onyx x12               |
+  |   -> 800 Chispas                         |
+  |   -> Cosmético: Trail "Aurora"           |
+  |   [ RECLAMAR ]    (barra colección +)    |
+  +------------------------------------------+
+
+9.5 PANTALLA DE PROGRESIÓN
+  +------------------------------------------+
+  | Nivel de cuenta 24  [XP ▓▓▓▓▓▓░░] 320/540|
+  | Anclas de velocidad:  [80][100][120]...  |  <- línea de tiempo de hitos
+  | Colección: Personajes 11/24  Mundos 6/12 |
+  | Prestigio: ☆☆☆ (III)  Bonus +6% Sparks   |
+  | [Logros]  [Estadísticas]  [Ligas]        |
+  +------------------------------------------+
+
+
+================================================================================
+10. ESTRATEGIA DE RETENCIÓN (D1 / D7 / D30 / D90)
+================================================================================
+
+DÍA 1 (objetivo: enganche inmediato, target retención ≥40%)
+- Onboarding de <60 s que termina con un primer desbloqueo (personaje o ancla).
+- Primera carrera "amañada" para sentir velocidad y un near-miss épico.
+- Recompensa de bienvenida + primera misión trivial completada al instante
+  (efecto "endowed progress").
+- Bucle de "una más" reforzado por reintento de 1 toque y récord personal.
+
+DÍA 7 (objetivo: formar hábito, target ≥18-20%)
+- Calendario de login de 7 días con clímax al día 7 (personaje raro).
+- Misiones diarias + desafío diario establecen rutina.
+- Primer evento semanal accesible; primer mundo nuevo desbloqueable.
+- Pase de temporada gratuito mostrando recompensas próximas (curiosidad).
+
+DÍA 30 (objetivo: profundidad, target ≥8-10%)
+- Variedad de personajes/mundos mantiene novedad; metas de colección.
+- Ligas competitivas con reset mensual (estatus + recompensas).
+- Pase de temporada en marcha (compromiso de 30 días).
+- Recompensas por retorno para recuperar ausencias puntuales.
+
+DÍA 90 (objetivo: comunidad y endgame, target ≥3-5%)
+- Sistema de Prestigio para veteranos (estatus, insignias, bonus).
+- Eventos míticos rotativos con personajes coleccionables exclusivos.
+- Roadmap de contenido visible (próximos mundos/temporadas).
+- Funciones sociales: ranking de amigos, compartir clips, clanes (post-launch).
+- Encuestas/feedback in-game para co-crear (sentido de pertenencia).
+
+PALANCAS TRANSVERSALES
+- Notificaciones push éticas (recordatorio de misión/energía de evento, opt-in,
+  con control de frecuencia; nunca manipuladoras).
+- A/B testing continuo de onboarding, economía y dificultad.
+- Live-ops calendarizadas (evento semanal + temporada mensual).
+
+
+================================================================================
+11. MONETIZACIÓN ÉTICA (sin Pay-To-Win)
+================================================================================
+
+PRINCIPIO RECTOR: el dinero compra TIEMPO, COMODIDAD y ESTILO, nunca PODER de
+gameplay decisivo. Toda ventaja es alcanzable jugando.
+
+11.1 ANUNCIOS RECOMPENSADOS (rewarded, opt-in)
+- x2 monedas al final de carrera (el más usado, alto eARPDAU sin molestar).
+- Reintento del desafío diario, reroll de misión, cofre extra diario.
+- Frecuencia: el jugador decide; sin anuncios forzados que interrumpan el flow.
+- Intersticiales: solo en transiciones naturales (cada N partidas), capados, y
+  ELIMINABLES con compra (ver "Remove Ads").
+
+11.2 PASE DE TEMPORADA (Battle Pass)
+- Track gratuito + track premium (precio ~4.99-9.99 USD). Duración ~30 días.
+- Premium da cosméticos exclusivos, más Cores, personajes de temporada,
+  multiplicadores de XP/Sparks (aceleran progreso, no rompen balance).
+- "Pase plus" opcional que adelanta niveles (comodidad, no poder).
+
+11.3 TIENDA
+- Paquetes de Cores (escala con bonus por volumen).
+- Ofertas rotativas de cosméticos. Sin presión de cuenta regresiva agresiva.
+- "Starter Pack" único de alto valor para conversión temprana (ético: gran valor
+  real, una vez).
+
+11.4 COSMÉTICOS (núcleo de monetización ética)
+- Skins de personaje, trails, efectos de ZONA, temas de UI, marcos de perfil.
+- Puramente estéticos; visibles para otros en ranking/clips (motivación social).
+
+11.5 PAQUETES
+- "Remove Ads" (quita intersticiales, mantiene rewarded opcional).
+- Bundles temáticos por evento (personaje + skin + Cores) con descuento.
+- "Founder's Pack" de lanzamiento (cosmético exclusivo de fundador).
+
+SALVAGUARDAS ÉTICAS
+- Probabilidades publicadas + pity timer en cofres.
+- Sin loot boxes compradas con dinero real opacas (las cajas de pago, si existen,
+  muestran contenido o son deterministas).
+- Controles parentales / gasto; cumplimiento COPPA/edad y normativa UE de
+  microtransacciones; sin mecánicas de azar pagadas dirigidas a menores.
+- Transparencia de precios y de qué otorga cada compra.
+
+
+================================================================================
+12. ROADMAP DE DESARROLLO
+================================================================================
+
+FASE 0 — PREPRODUCCIÓN (2-3 semanas)
+- Prototipo de "feel" de velocidad y controles (greybox). Validar el core fun.
+- Definir métricas objetivo y plan de soft-launch.
+
+MVP (4-6 semanas) — "¿Es divertido en 30 segundos?"
+- Core loop jugable: 1 personaje, 1 mundo, generación procedural básica,
+  velocidad persistente + anclas, score, game over, reintento.
+- Sin economía compleja, sin tienda. Solo el bucle de reflejos + progreso de
+  velocidad. Meta: retención de prototipo y sensación pulida.
+PRIORIDAD ABSOLUTA: que correr y esquivar a alta velocidad se sienta increíble.
+
+ALPHA (6-8 semanas) — sistemas
+- Economía (Chispas/Cores), 5-8 personajes, 3-4 mundos, misiones diarias,
+  niveles de cuenta, cofres, save en la nube, primer pase básico.
+- Integración de analytics (eventos clave) y de ads (rewarded).
+- Tutorial/onboarding completo.
+
+BETA / SOFT-LAUNCH (6-10 semanas) — tuning con datos reales
+- Lanzar en 3-4 países de bajo CPI. Medir D1/D7/D30, ARPDAU, embudo de tutorial.
+- Balancear economía y DDA con datos. A/B testing. 12-16 personajes, 6-8 mundos.
+- Pulir rendimiento (60 fps en gama media, tamaño de build, batería).
+
+LANZAMIENTO GLOBAL — go-to-market
+- 24 personajes, 10-12 mundos, pase de temporada completo, eventos, ligas.
+- ASO (App Store Optimization), tráiler, creatividades de UA, prensa/influencers.
+- Infra de live-ops lista (servidor de configs remotas, eventos calendarizados).
+
+POST-LANZAMIENTO (continuo) — "juego como servicio"
+- Temporada nueva cada ~30 días (pase + cosméticos + 1 personaje).
+- Mundo/personaje nuevo cada 4-6 semanas. Eventos míticos rotativos.
+- Funciones sociales (amigos, clanes), nuevos modos (contrarreloj, jefe).
+- Optimización continua de retención y monetización por datos.
+
+QUÉ DESARROLLAR PRIMERO (orden estricto)
+1) Feel de control + velocidad (greybox).  2) Generación procedural solvente.
+3) Velocidad persistente + anclas.  4) Game over + reintento + recompensa.
+5) Economía y progresión.  6) Contenido (personajes/mundos).  7) Live-ops/ads.
+
+
+================================================================================
+13. IMPLEMENTACIÓN EN UNITY
+================================================================================
+
+VERSIÓN/STACK
+- Unity LTS (p. ej. 2022/2023 LTS), URP (Universal Render Pipeline) para móvil.
+- C#, paquetes: Input System, Addressables, Cinemachine, TextMeshPro, DOTween,
+  Unity Ads/LevelPlay o AdMob, Analytics (Unity Gaming Services o Firebase),
+  Cloud Save (UGS) o backend propio, In-App Purchasing.
+
+ARQUITECTURA (alto nivel)
+- Patrón: Managers singleton ligeros + eventos (event bus) + ScriptableObjects
+  para datos/config. Pooling de objetos para obstáculos/efectos (rendimiento).
+- Separación clara: Datos (SO) / Lógica (sistemas) / Presentación (vistas/UI).
+- Config remota (Remote Config) para balancear economía/DDA sin republicar.
+
+ESCENAS NECESARIAS
+- Boot (init de servicios, carga de datos, splash).
+- MainMenu (menú, personajes, tienda, pase, eventos).
+- Game (gameplay/carrera, HUD).
+- (Opcional) Loading aditiva y overlays de UI como escenas aditivas.
+
+MANAGERS (servicios)
+- GameManager        : estado global, flujo de partida, pausa.
+- RunManager         : ciclo de carrera (inicio, fin, score, anclas).
+- SpeedManager       : V(t), Vbase, anclas, ZONA.
+- SpawnManager       : generación procedural por chunks + pooling + solvencia.
+- ObstacleManager    : tipos, telegrafía, colisiones.
+- InputManager       : Input System, gestos (tap/swipe/hold/double-tap), buffer.
+- PlayerController   : movimiento por carriles, dash, freno, salto/deslizar.
+- DifficultyManager  : DDA (SkillRating, ajustes).
+- EconomyManager     : Chispas/Cores, transacciones, sinks/sources.
+- ProgressionManager : niveles, misiones, logros, anclas, prestigio.
+- CollectionManager  : personajes, evoluciones, mundos, cosméticos.
+- SaveManager        : guardado local + Cloud Save, serialización.
+- UIManager          : navegación de pantallas, HUD, popups.
+- AudioManager       : música reactiva, SFX, pitch por velocidad.
+- AdsManager         : rewarded/intersticial, frecuencia, callbacks.
+- IAPManager         : compras, validación de recibos, restore.
+- AnalyticsManager   : eventos (funnel, economía, retención).
+- LiveOpsManager     : eventos, desafíos diarios, Remote Config.
+- VFXManager / CameraManager (Cinemachine) : efectos y cámara.
+
+SCRIPTABLEOBJECTS (datos)
+- CharacterData      : id, rareza, pasiva, costes, fragmentos, evoluciones, arte.
+- WorldData          : id, paleta, música, obstáculos exclusivos, dificultad.
+- ObstacleData       : tipo, prefab, dificultad, regla de solvencia.
+- ChunkData          : composición de obstáculos, dificultad, carriles.
+- PowerUpData        : tipo, duración, efecto.
+- MissionData        : tipo, objetivo, recompensa, periodicidad.
+- AchievementData    : condición, recompensa.
+- RewardTableData    : tabla de cofres con probabilidades + pity.
+- EconomyConfig      : costes, fórmulas, multiplicadores.
+- LevelCurveData     : curva XP, recompensas por nivel.
+- SeasonPassData     : tiers, recompensas free/premium.
+- AnchorConfig       : umbrales de velocidad, condiciones de anclaje.
+
+ESTRUCTURA DE CARPETAS (Assets/)
+  Assets/
+    _Project/
+      Art/           (Models, Materials, Textures, VFX, UI, Fonts)
+      Audio/         (Music, SFX)
+      Prefabs/       (Player, Obstacles, Chunks, PowerUps, UI, VFX)
+      ScriptableObjects/ (Characters, Worlds, Obstacles, Economy, Missions...)
+      Scenes/        (Boot, MainMenu, Game)
+      Scripts/
+        Core/        (GameManager, EventBus, ServiceLocator, SaveManager)
+        Gameplay/    (PlayerController, SpeedManager, SpawnManager, Obstacle...)
+        Systems/     (Economy, Progression, Collection, Difficulty, LiveOps)
+        UI/          (Screens, HUD, Popups, Bindings)
+        Services/    (Ads, IAP, Analytics, CloudSave, RemoteConfig)
+        Data/        (SO definitions, runtime models)
+        Utils/       (ObjectPool, Extensions, MathUtils)
+      Settings/      (URP assets, Input Actions, build configs)
+    Plugins/         (SDKs: Ads, IAP, Analytics)
+    StreamingAssets/
+
+NOTAS DE RENDIMIENTO MÓVIL
+- 60 fps objetivo; object pooling agresivo; Addressables para carga/streaming de
+  mundos; batching estático/dinámico; texturas comprimidas (ASTC); evitar GC
+  spikes (sin allocs por frame); LODs simples; postprocesado ajustado por gama.
+
+
+================================================================================
+14. PROMPTS DE IA PARA ASSETS
+================================================================================
+
+(Optimizados para herramientas tipo Midjourney/SDXL/DALL·E. Ajustar "--ar" y
+estilo según herramienta. Mantener coherencia con la guía artística: neón-
+sintético, fondo oscuro, alta legibilidad.)
+
+PERSONAJES
+- "Sleek minimalist 3D runner character, neon synthwave style, emissive glowing
+  trim, dark background, dynamic running pose, cyan and magenta accents, clean
+  low-poly stylized, soft rim light, mobile game hero character, full body,
+  centered, --ar 2:3"
+- Variante mítica: "...legendary aura, particle effects, holographic energy
+  trail, premium collectible game character, dramatic lighting".
+
+FONDOS / MUNDOS
+- "Endless futuristic neon tunnel, synthwave grid floor, glowing geometric
+  obstacles, dark blue ambient, sense of extreme speed, motion blur lines,
+  vertical mobile runner background, high contrast, atmospheric bloom, --ar 9:16"
+- Por mundo, sustituir tema: "frozen ice canyon", "volcanic tech core",
+  "underwater glowing tubes", "fractured quantum reality", etc.
+
+OBSTÁCULOS
+- "Glowing geometric obstacle for runner game, danger red-orange emissive edges,
+  clean readable silhouette, minimalist 3D, dark background, isolated asset,
+  game prop, --ar 1:1"
+
+EFECTOS (VFX)
+- "Speed energy trail and shockwave VFX, neon cyan particles, bloom, on
+  transparent dark background, game effect sprite sheet, glowing, --ar 1:1"
+- "Zone activation shockwave, chromatic aberration burst, slow-motion energy
+  ring, vibrant, mobile game VFX".
+
+ICONOS
+- "Set of mobile game UI icons, neon outline with emissive fill, currency coin
+  (spark), gem core, character, shop, mission, consistent line style, dark
+  glassmorphism background, --ar 1:1"
+
+UI
+- "Mobile game UI screen, glassmorphism panels, neon glowing borders, geometric
+  sans-serif typography, dark synthwave theme, main menu with big PLAY button,
+  bottom navigation bar, clean and modern, portrait, --ar 9:16"
+
+MATERIAL PROMOCIONAL
+- "App store feature graphic for neon speed runner mobile game, dynamic hero
+  character racing at extreme speed, glowing tunnel, bold title VELOCITY ZERO,
+  high energy, vibrant cyan and magenta, marketing key art, --ar 16:9"
+- "Vertical app store screenshots template, gameplay mockup with HUD, speed and
+  score, callout texts, polished marketing, --ar 9:16"
+
+
+================================================================================
+15. RIESGOS, MEJORAS Y VERSIÓN DEFINITIVA
+================================================================================
+
+ANÁLISIS CRÍTICO / RIESGOS
+1) Saturación del género runner: diferenciarse es vital. MITIGAR: la velocidad
+   persistente + ZONA debe sentirse único en los primeros 30 s (el "wow").
+2) Velocidad persistente podría volver el juego trivial o injusto: si arrancas
+   muy rápido, mueres al instante (frustración). MITIGAR: el jugador ELIGE su
+   ancla de inicio; DDA y telegrafía proporcional; "respiro garantizado".
+3) Techo de habilidad alto puede expulsar a casuales. MITIGAR: progresión de
+   CUENTA garantizada y asistencias (coyote-time, input buffer) opcionales.
+4) Economía desbalanceada (inflación o muros). MITIGAR: soft-launch + Remote
+   Config + fórmulas escalables ya definidas.
+5) Fatiga de contenido a D30+. MITIGAR: live-ops sólida, roadmap de mundos/
+   personajes, eventos míticos.
+6) Monetización percibida como agresiva. MITIGAR: solo cosméticos/comodidad,
+   probabilidades públicas, sin P2W; reputación = retención a largo plazo.
+7) Rendimiento en gama baja. MITIGAR: presupuestos de arte, pooling, LODs,
+   escalado de postprocesado.
+8) Cumplimiento legal (loot boxes, menores, privacidad). MITIGAR: cajas
+   transparentes/deterministas en pago, controles de gasto, GDPR/COPPA.
+
+MEJORAS PROPUESTAS (subir adicción/diversión/rentabilidad SIN ser dark)
+- "Ghost run": competir contra el fantasma de tu mejor carrera o de un amigo
+  (motivación intrínseca de mastery + social).
+- Modo "Sincronía musical": tramos donde obstáculos van al beat (capa de ritmo
+  para subir el techo de habilidad y la satisfacción).
+- "Momento ZONA viral": clip auto-grabado de tu mejor near-miss/ZONA para
+  compartir (UA orgánica).
+- Ligas semanales con divisiones (Bronce->Mítico) y recompensas (retención
+  competitiva ética, basada en habilidad no en pago).
+- Co-op asíncrono / clanes con metas colectivas (pertenencia social a D90).
+- "Forja de personajes": combinar fragmentos duplicados en cosméticos (sink útil
+  para duplicados, evita frustración del coleccionista).
+
+VERSIÓN DEFINITIVA OPTIMIZADA (síntesis del equipo)
+"VELOCITY ZERO" es un endless runner vertical de reflejos cuyo núcleo —la
+VELOCIDAD PERSISTENTE— convierte cada muerte en progreso y cada partida en una
+mejora tangible, eliminando la frustración del "volver a empezar". El estado
+ZONA premia el dominio sobre la suerte y entrega el pico dopamínico que define
+la "una partida más". La retención se sostiene en tres ejes simultáneos
+(habilidad, colección, cuenta) para no dejar a ningún perfil sin avance, reforzados
+por hábitos diarios éticos, eventos semanales y un endgame de prestigio y ligas.
+La monetización es 100% cosmética/comodidad con anuncios recompensados opt-in,
+pase de temporada y tienda transparente: sin Pay-To-Win, optimizada para
+reputación y LTV sostenible. El plan de producción prioriza primero el "feel" de
+velocidad (lo único que no se puede arreglar después), valida con soft-launch
+guiado por datos, y escala como juego-servicio con cadencia constante de
+contenido. Es un diseño con identidad propia, techo de habilidad alto, base
+casual accesible y arquitectura técnica lista para producir en Unity y publicar
+en Google Play y App Store con potencial real de franquicia.
+
+================================================================================
+                              FIN DEL DOCUMENTO
+================================================================================
