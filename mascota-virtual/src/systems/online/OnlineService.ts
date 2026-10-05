@@ -38,6 +38,16 @@ export interface RemoteParkPet extends RemotePet {
   id: string;
   apodo: string;
 }
+/** Regalo escrito a mano en la pestaña "Regalos" de la hoja. */
+export interface Gift {
+  regalo: string;
+  monedas: number;
+  estrellas: number;
+  objeto: string;
+  cantidad: number;
+  mensaje: string;
+}
+
 export interface RankingRow {
   apodo: string;
   mascota: string;
@@ -150,10 +160,10 @@ export class OnlineService {
   }
 
   /** Sube la mascota principal y recibe monedas pendientes y crías adoptadas. */
-  async sync(main: Pet | undefined): Promise<{ monedas: number; adoptadas: { oferta: string; mascotaId: string; precio: number }[] }> {
+  async sync(main: Pet | undefined): Promise<{ monedas: number; adoptadas: { oferta: string; mascotaId: string; precio: number }[]; regalos: Gift[] }> {
     const res = await this.call('POST', { accion: 'sincronizar', mascota: main ? OnlineService.toRemote(main) : null });
     this.state.online.lastSync = Clock.now();
-    return { monedas: Number(res.monedas) || 0, adoptadas: res.adoptadas ?? [] };
+    return { monedas: Number(res.monedas) || 0, adoptadas: res.adoptadas ?? [], regalos: res.regalos ?? [] };
   }
 
   async publishAdoption(pet: Pet, precio: number): Promise<string> {

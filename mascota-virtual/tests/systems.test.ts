@@ -338,6 +338,20 @@ describe('Servidor (Google Sheets)', () => {
     expect(calls.every((c) => typeof c.id === 'string' && /^[a-f0-9]{24}$/.test(c.id as string))).toBe(true);
   });
 
+  it('recibe regalos escritos en la hoja (monedas, estrellas y objeto)', async () => {
+    PetManager.instance.createStarter(Species.Dog, 'Toby');
+    OnlineService.instance.transport = async () => ({
+      ok: true, monedas: 0, adoptadas: [],
+      regalos: [{ regalo: 'Bienvenida', monedas: 500, estrellas: 5, objeto: 'acc_crown', cantidad: 1, mensaje: 'Hola' }],
+    });
+    const coins = EconomySystem.instance.coins;
+    const stars = EconomySystem.instance.stars;
+    expect(await GameManager.instance.syncOnline()).toBe(true);
+    expect(EconomySystem.instance.coins).toBe(coins + 500);
+    expect(EconomySystem.instance.stars).toBe(stars + 5);
+    expect(EconomySystem.instance.quantity('acc_crown')).toBe(1);
+  });
+
   it('aparea con la mascota de otro jugador pagando su tarifa', async () => {
     const mom = Pet.create({ name: 'Mamá', speciesId: Species.Cat, now, sex: Sex.Female });
     PetManager.instance.add(mom, 'adopted');

@@ -11,6 +11,11 @@ Google y un Apps Script (igual que el ranking de Mi Zoológico). Es gratis.
 | `Adopciones` | Crías publicadas en adopción y quién las adoptó |
 | `Parejas` | Mascotas adultas ofrecidas para tener crías (con su tarifa) |
 | `Puntajes` | Mejor puntaje de cada jugador en cada competencia (ranking global) |
+| `Regalos` | **La rellenas tú**: monedas, estrellas u objetos para un jugador (por su ID) o para `todos` |
+
+Hay una plantilla lista con todas las pestañas: [`plantilla-patitas.xlsx`](plantilla-patitas.xlsx)
+(se regenera con `python3 scripts/make-sheet-template.py`). Súbela a Drive, ábrela con Google Sheets
+y sigue los pasos de abajo desde el punto 2.
 
 Las pestañas se crean solas la primera vez que el juego se conecta.
 
@@ -39,6 +44,8 @@ Si cambias el script más adelante: **Implementar › Gestionar implementaciones
   paga el precio y el dueño lo recibe en su siguiente sincronización (la cría se va de su partida).
 - **Parejas:** puedes ofrecer un adulto como pareja; quien lo usa paga la tarifa y tú la cobras.
 - **Competencias:** se guarda tu mejor puntaje y se muestra el ranking global.
+- **Regalos:** escribe una fila en `Regalos` con `para` = ID del jugador (Ajustes › Servidor › Tu ID)
+  o `todos`, y `activo` = SI. Cada jugador lo recibe una sola vez en su siguiente sincronización.
 
 ## Limitaciones (es una solución provisional)
 

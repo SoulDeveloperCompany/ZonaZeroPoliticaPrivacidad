@@ -83,6 +83,10 @@ export class GameManager {
         EconomySystem.instance.addCoins(r.monedas);
         toast(`🌐 Otros jugadores te pagaron ${r.monedas} 🪙`, 'good');
       }
+      for (const g of r.regalos) {
+        const item = EconomySystem.instance.giveGift(g);
+        EventBus.instance.emit('online:gift', { title: g.regalo, message: g.mensaje, coins: g.monedas, stars: g.estrellas, item });
+      }
       EventBus.instance.emit('online:synced', { coins: r.monedas, adopted });
       return true;
     } catch {

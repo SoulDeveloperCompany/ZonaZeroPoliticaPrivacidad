@@ -61,5 +61,16 @@ post({ accion: 'puntaje', id: B, apodo: 'y', competencia: 'agility_race', puntaj
 post({ accion: 'puntaje', id: A, apodo: 'x', competencia: 'agility_race', puntaje: 50, estrellas: 2, mascota: 'Toby', especie: 'dog' });
 const rk = get({ accion: 'ranking', competencia: 'agility_race', id: A });
 check(rk.lista[0].puntaje === 85 && rk.posicion === 2 && rk.lista[1].puntaje === 70, 'ranking guarda el mejor puntaje');
+// Regalos escritos a mano en la hoja
+ctx.doGet({ parameter: {} });
+const reg = sheets.Regalos || ctx.SpreadsheetApp.getActiveSpreadsheet().insertSheet('Regalos');
+if (!reg._rows.length) reg.appendRow(['regalo', 'para', 'monedas', 'estrellas', 'objeto', 'cantidad', 'mensaje', 'activo', 'entregados']);
+reg.appendRow(['Bienvenida', 'todos', 500, 5, 'acc_crown', 1, '¡Gracias por probar Patitas!', 'SI', '']);
+reg.appendRow(['Solo para B', B, 100, 0, '', '', 'Para ti', 'SI', '']);
+reg.appendRow(['Apagado', 'todos', 999, 0, '', '', 'No debe llegar', 'NO', '']);
+const ga = post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet }).regalos;
+check(ga.length === 1 && ga[0].monedas === 500 && ga[0].objeto === 'acc_crown', 'A recibe el regalo para todos');
+check(post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet }).regalos.length === 0, 'A no lo recibe dos veces');
+check(post({ accion: 'sincronizar', id: B, apodo: 'y', mascota: pet }).regalos.length === 2, 'B recibe el de todos y el suyo');
 console.log(ok ? '\nServidor OK' : '\nHAY FALLOS');
 process.exit(ok ? 0 : 1);

@@ -64,6 +64,14 @@ export class App {
       showModal({ title: '👋 Una nueva familia', body: `<p>${esc(name)} no volvió a tiempo y ahora vive feliz con otra familia. Siempre estará en tu álbum.</p>` });
       if (PetManager.instance.all().length === 0) this.showNewPet();
     });
+    bus.on('online:gift', (g) => {
+      const parts = [g.coins ? `+${g.coins} 🪙` : '', g.stars ? `+${g.stars} ⭐` : '', g.item ? `🎀 ${esc(g.item)}` : ''].filter(Boolean);
+      showModal({
+        title: `🎁 ${esc(g.title || '¡Tienes un regalo!')}`,
+        body: `<div class="result-stars">🎁</div>${g.message ? `<p class="center">${esc(g.message)}</p>` : ''}<p class="center reward">${parts.join(' · ')}</p>`,
+        buttons: [{ label: '¡Gracias!', act: 'close', primary: true }],
+      });
+    });
     bus.on('adoption:completed', ({ petName, coins }) => showToast(`🤝 ${petName} encontró un nuevo hogar. +${coins} 🪙`, 'good'));
 
     this.updateWallet();
@@ -151,6 +159,8 @@ export class App {
         <div class="server-box">
           <b>🌐 Servidor (multijugador)</b>
           <p class="hint">Tu apodo: <b class="apodo">${esc(OnlineService.instance.player.apodo)}</b> <button class="btn btn-sm" data-act="apodo">🎲 Cambiar</button></p>
+          <div class="player-id"><span>Tu ID</span><code id="player-id">${esc(OnlineService.instance.player.id)}</code><button class="btn btn-sm" data-act="copy-id">📋 Copiar</button></div>
+          <p class="hint">Usa este ID en la pestaña <b>Regalos</b> de la hoja (columna <b>para</b>) para enviarle un regalo a este jugador.</p>
           <label class="field"><span>URL del Apps Script (/exec)</span>
             <input id="server-url" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(OnlineService.instance.url)}"/></label>
           <div class="field-row"><button class="btn btn-primary" data-act="connect">Conectar</button><span class="server-status">${serverStatus()}</span></div>
@@ -172,6 +182,21 @@ export class App {
         <p class="hint center">Patitas v0.1 · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
+        if (act === 'copy-id') {
+          const id = OnlineService.instance.player.id;
+          navigator.clipboard?.writeText(id).then(
+            () => showToast('ID copiado 📋', 'good'),
+            () => {
+              // Si el portapapeles está bloqueado, se selecciona el texto para copiarlo a mano
+              const range = document.createRange();
+              range.selectNodeContents(modal.body.querySelector('#player-id')!);
+              getSelection()?.removeAllRanges();
+              getSelection()?.addRange(range);
+              showToast('Mantén pulsado para copiar el ID');
+            },
+          );
+          return true;
+        }
         if (act === 'connect' || act === 'apodo') {
           void this.serverAction(act, modal.body);
           return true;

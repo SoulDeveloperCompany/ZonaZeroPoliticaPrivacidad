@@ -10,15 +10,17 @@
 //   Adopciones · crías publicadas en adopción
 //   Parejas    · mascotas adultas ofrecidas para tener crías
 //   Puntajes   · mejor puntaje de cada jugador en cada competencia
+//   Regalos    · regalos que TÚ escribes a mano (a un jugador o a "todos")
 
 const HOJAS = {
   Jugadores: ['id', 'apodo', 'mascota', 'especie', 'etapa', 'sexo', 'genes', 'accesorios', 'visto', 'pendiente'],
   Adopciones: ['oferta', 'dueno', 'duenoApodo', 'mascotaId', 'nombre', 'especie', 'sexo', 'genes', 'precio', 'fecha', 'estado', 'adoptante'],
   Parejas: ['anuncio', 'dueno', 'duenoApodo', 'mascotaId', 'nombre', 'especie', 'sexo', 'genes', 'tarifa', 'fecha', 'usos', 'activo'],
   Puntajes: ['id', 'apodo', 'competencia', 'puntaje', 'estrellas', 'mascota', 'especie', 'fecha'],
+  Regalos: ['regalo', 'para', 'monedas', 'estrellas', 'objeto', 'cantidad', 'mensaje', 'activo', 'entregados'],
 };
 // Columnas de ids: se guardan como texto para que Sheets no las convierta en números
-const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'] };
+const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'] };
 const MIN_PARQUE = 30; // minutos que un jugador cuenta como "en el parque" tras su última conexión
 
 // ---------- Utilidades de hojas ----------
@@ -41,7 +43,7 @@ function filas_(nombre) {
   return h.getRange(2, 1, n, cols.length).getValues().map((v, i) => {
     const o = { _fila: i + 2 };
     cols.forEach((c, k) => (o[c] = v[k]));
-    ['id', 'dueno', 'oferta', 'anuncio', 'mascotaId'].forEach((c) => { if (c in o) o[c] = String(o[c]); });
+    ['id', 'dueno', 'oferta', 'anuncio', 'mascotaId', 'para', 'entregados'].forEach((c) => { if (c in o) o[c] = String(o[c]); });
     return o;
   });
 }
@@ -75,6 +77,34 @@ function mascota_(m) {
     accesorios: json_(m.accesorios),
   };
 }
+/** "SI", "sí", TRUE, "x" o 1 cuentan como activo. */
+function activo_(v) {
+  return v === true || /^(si|sí|x|1|true|verdadero)$/i.test(String(v).trim());
+}
+
+/** Regalos pendientes para un jugador; los marca como entregados. */
+function entregarRegalos_(id) {
+  const lista = [];
+  filas_('Regalos').forEach((f) => {
+    const para = f.para.trim().toLowerCase();
+    if (!activo_(f.activo) || (para !== 'todos' && para !== id)) return;
+    const entregados = f.entregados ? f.entregados.split(',').map((x) => x.trim()) : [];
+    if (entregados.indexOf(id) >= 0) return;
+    entregados.push(id);
+    f.entregados = entregados.join(',');
+    escribir_('Regalos', f);
+    lista.push({
+      regalo: texto_(f.regalo, 40),
+      monedas: num_(f.monedas, 100000),
+      estrellas: num_(f.estrellas, 1000),
+      objeto: texto_(f.objeto, 40),
+      cantidad: Math.max(1, num_(f.cantidad, 99)),
+      mensaje: texto_(f.mensaje, 200),
+    });
+  });
+  return lista;
+}
+
 function sumarPendiente_(idJugador, monedas) {
   const j = filas_('Jugadores').find((f) => f.id === idJugador);
   if (!j) return;
@@ -101,7 +131,7 @@ function doPost(e) {
         // Crías de este jugador que alguien adoptó desde la última vez
         const adoptadas = filas_('Adopciones').filter((f) => f.dueno === d.id && f.estado === 'adoptada');
         adoptadas.forEach((f) => { f.estado = 'entregada'; escribir_('Adopciones', f); });
-        return responder_({ ok: true, monedas, adoptadas: adoptadas.map((f) => ({ oferta: f.oferta, mascotaId: f.mascotaId, precio: f.precio })) });
+        return responder_({ ok: true, monedas, adoptadas: adoptadas.map((f) => ({ oferta: f.oferta, mascotaId: f.mascotaId, precio: f.precio })), regalos: entregarRegalos_(d.id) });
       }
       case 'publicarAdopcion': {
         const m = mascota_(d.cria);

@@ -556,3 +556,5 @@ small { color: var(--muted); }
 .refresh { float: right; }
 .family-breed .btn { margin-top: 6px; width: 100%; }
 .rank-name small { color: var(--muted); font-weight: 600; }
+.player-id { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: #fff6ec; border-radius: 12px; padding: 8px; font-size: 12px; font-weight: 800; }
+.player-id code { flex: 1; min-width: 0; font-size: 12px; word-break: break-all; user-select: all; -webkit-user-select: all; background: #fff; border-radius: 8px; padding: 4px 6px; }

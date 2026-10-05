@@ -197,6 +197,29 @@ export class EconomySystem {
     EventBus.instance.emit('pet:statsChanged', { petId });
   }
 
+  // ---------- Regalos del servidor ----------
+
+  /**
+   * Entrega un regalo: monedas, estrellas y un objeto opcional (si el id existe).
+   * Devuelve el nombre del objeto entregado (o null).
+   */
+  giveGift(gift: { monedas: number; estrellas: number; objeto: string; cantidad: number }): string | null {
+    if (gift.monedas > 0) this.addCoins(gift.monedas);
+    if (gift.estrellas > 0) this.addStars(gift.estrellas);
+    if (!gift.objeto || !DataRegistry.instance.hasItem(gift.objeto)) return null;
+    const item = DataRegistry.instance.getItem(gift.objeto);
+    if (item.free) return null;
+    if (item.category === 'furniture') {
+      if (!this.state.furniture.includes(item.id)) this.state.furniture.push(item.id);
+      EventBus.instance.emit('economy:purchase', { itemId: item.id });
+    } else if (item.category === 'accessory') {
+      if (this.quantity(item.id) === 0) this.addItem(item.id, 1);
+    } else {
+      this.addItem(item.id, Math.max(1, gift.cantidad));
+    }
+    return item.name;
+  }
+
   // ---------- Recompensa diaria ----------
 
   private dayKey(ms: number): string {

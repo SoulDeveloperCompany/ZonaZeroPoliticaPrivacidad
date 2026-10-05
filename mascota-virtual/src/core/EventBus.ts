@@ -65,6 +65,7 @@ export interface GameEvents {
   // --- Servidor ---
   'online:status': { status: string };
   'online:synced': { coins: number; adopted: number };
+  'online:gift': { title: string; message: string; coins: number; stars: number; item: string | null };
 
   // --- UI genérica ---
   'ui:toast': { text: string; kind?: 'info' | 'good' | 'bad' };
