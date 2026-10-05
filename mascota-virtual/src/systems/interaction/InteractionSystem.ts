@@ -41,7 +41,7 @@ export function describeFailure(r: Extract<InteractionResult, { ok: false }>): s
     case 'cooldown':
       return `Espera ${Math.ceil((r.remainingMs ?? 0) / 1000)}s`;
     case 'sleeping':
-      return 'Está durmiendo... ¡shhh!';
+      return 'Está durmiendo 💤 Si la tocas, se despertará de mal humor';
     case 'tired':
       return 'Le falta energía. ¡Necesita dormir!';
     case 'noItem':
@@ -72,10 +72,8 @@ export class InteractionSystem {
     }
     const remaining = pet.cooldownRemaining(action.id, now);
     if (remaining > 0) return { ok: false, reason: 'cooldown', remainingMs: remaining };
-    // Dormida solo se puede despertar o acariciar suavemente
-    if (pet.data.sleeping && action.id !== 'sleep' && action.id !== 'pet') {
-      return { ok: false, reason: 'sleeping' };
-    }
+    // Mientras duerme no se puede hacer nada (tocarla la despierta: ver `wakeUp`)
+    if (pet.data.sleeping) return { ok: false, reason: 'sleeping' };
     if (pet.stats.energy < action.minEnergy) return { ok: false, reason: 'tired' };
     return null; // todo bien
   }
@@ -112,12 +110,6 @@ export class InteractionSystem {
         deltas = pet.applyDeltas(effects);
         break;
       }
-      case 'sleep': {
-        pet.data.sleeping = !pet.data.sleeping;
-        message = pet.data.sleeping ? 'Zzz... dulces sueños' : '¡Buenos días!';
-        EventBus.instance.emit('pet:sleepChanged', { petId: pet.id, sleeping: pet.data.sleeping });
-        break;
-      }
       case 'play':
         deltas = pet.applyDeltas({
           ...action.effects,
@@ -129,10 +121,6 @@ export class InteractionSystem {
           ...action.effects,
           hygiene: (action.effects.hygiene ?? 0) * (furniture.bathHygiene ?? 1),
         });
-        break;
-      case 'pet':
-        // Acariciar mientras duerme: solo un poquito de felicidad, sin despertarla
-        deltas = pet.applyDeltas(action.effects, pet.data.sleeping ? 0.5 : 1);
         break;
       case 'train': {
         deltas = pet.applyDeltas(action.effects);
@@ -152,7 +140,7 @@ export class InteractionSystem {
 
     // A veces encuentra monedas
     let coinsFound = 0;
-    if (action.id !== 'sleep' && chance(GameConfig.COIN_FIND_CHANCE)) {
+    if (chance(GameConfig.COIN_FIND_CHANCE)) {
       coinsFound = randInt(1, 5);
       EconomySystem.instance.addCoins(coinsFound);
     }
@@ -167,6 +155,29 @@ export class InteractionSystem {
     });
     EventBus.instance.emit('pet:statsChanged', { petId: pet.id });
     return { ok: true, deltas, message, coinsFound, trickLearned };
+  }
+
+  /**
+   * Despertar a la mascota (al tocarla mientras duerme). Se enfada un poco:
+   * pierde felicidad y aguanta despierta un rato antes de volver a dormirse.
+   */
+  wakeUp(petId: string): boolean {
+    const pet = PetManager.instance.get(petId);
+    if (!pet || !pet.isActive || !pet.data.sleeping) return false;
+    const now = Clock.now();
+    pet.data.sleeping = false;
+    pet.data.wokenAt = now;
+    const deltas = pet.applyDeltas({ happiness: -GameConfig.SLEEP.wakePenalty });
+    EventBus.instance.emit('pet:sleepChanged', { petId: pet.id, sleeping: false });
+    EventBus.instance.emit('interaction:performed', {
+      petId: pet.id,
+      actionId: 'wake',
+      animation: 'wake',
+      deltas,
+      message: pick(['😾 ¡Me despertaste!', '😤 ¡Estaba soñando!', '🥱 Grrr... qué sueño']),
+    });
+    EventBus.instance.emit('pet:statsChanged', { petId: pet.id });
+    return true;
   }
 
   /** Siguiente truco por aprender de la especie (o null si ya los sabe todos). */

@@ -25,6 +25,8 @@ export type PetMood = 'happy' | 'normal' | 'sad' | 'hungry' | 'dirty' | 'sick' |
 export interface DecayContext {
   furniture: FurnitureBonus;
   offline: boolean;
+  /** Momento simulado (ms reales). */
+  now: number;
 }
 
 export class Pet {
@@ -79,6 +81,7 @@ export class Pet {
       genes,
       location: PetLocation.Active,
       sleeping: false,
+      wokenAt: null,
       care: { sum: 0, weight: 0 },
       wellCared: null,
       escapedAt: null,
@@ -215,8 +218,7 @@ export class Pet {
       if (s.energy >= cfg.SLEEP.autoWakeEnergy) this.data.sleeping = false;
     } else {
       s.energy = clamp(s.energy + cfg.DECAY_PER_DAY.energy * (mods.energy ?? 1) * seniorEnergy * factor);
-      // Si se queda sin energía, se duerme sola
-      if (s.energy <= cfg.SLEEP.autoSleepEnergy) this.data.sleeping = true;
+      this.sleepRoutine(days, ctx.now);
     }
 
     // Salud: baja si está descuidada, se recupera poco a poco si todo va bien
@@ -231,6 +233,25 @@ export class Pet {
     }
     // El daño usa el factor offline; la regeneración usa los días reales
     s.health = clamp(s.health + healthDelta * (healthDelta < 0 ? factor : days));
+  }
+
+  /** ¿Tiene sueño? (la UI lo muestra con bostezos antes de que se duerma). */
+  get isDrowsy(): boolean {
+    return !this.data.sleeping && this.data.stats.energy <= GameConfig.SLEEP.drowsyEnergy;
+  }
+
+  /**
+   * Rutina de sueño propia: con poca energía se duerme sola. Si el jugador
+   * la acaba de despertar, aguanta un rato despierta (salvo que esté agotada).
+   */
+  private sleepRoutine(days: number, now: number): void {
+    const cfg = GameConfig.SLEEP;
+    const energy = this.data.stats.energy;
+    const justWoken = this.data.wokenAt !== null && now - this.data.wokenAt < cfg.wokenGraceMs;
+    if (justWoken && energy > 5) return;
+    if (energy <= cfg.autoSleepEnergy || (energy <= cfg.drowsyEnergy && rng() < cfg.drowsyChancePerDay * days)) {
+      this.data.sleeping = true;
+    }
   }
 
   // ---------- Cooldowns ----------

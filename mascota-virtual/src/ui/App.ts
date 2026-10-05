@@ -83,6 +83,8 @@ export class App {
     this.current?.unmount?.();
     this.main.innerHTML = '';
     this.main.scrollTop = 0;
+    // La casa ocupa toda la pantalla (sin márgenes ni scroll)
+    this.main.classList.toggle('screen-full', entry.id === 'home');
     const screenRoot = el('div', `screen-${entry.id}`);
     this.main.appendChild(screenRoot);
     this.current = entry.create();
@@ -94,6 +96,7 @@ export class App {
   private showNewPet(): void {
     this.current?.unmount?.();
     this.shell.classList.add('onboarding');
+    this.main.classList.remove('screen-full');
     this.main.innerHTML = '';
     const root = el('div');
     this.main.appendChild(root);

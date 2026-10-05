@@ -1,6 +1,7 @@
 /**
- * Acciones de cuidado. `feed` toma sus efectos del alimento elegido y
- * `sleep` alterna dormir/despertar; el resto aplica `effects` directamente.
+ * Acciones de cuidado. `feed` toma sus efectos del alimento elegido;
+ * el resto aplica `effects` directamente. Dormir no es una acción: la mascota
+ * sigue su propia rutina (ver `Pet.sleepRoutine`). Acariciar se hace tocando a la mascota.
  */
 import type { ActionDefinition } from './types';
 import { GrowthStage } from '../systems/pet/PetTypes';
@@ -39,6 +40,7 @@ export const ACTIONS: ActionDefinition[] = [
     cooldownMs: 10 * S,
     minStage: GrowthStage.Baby,
     animation: 'wiggle',
+    button: false,
     messages: ['♥', '¡Más mimos!', 'Purrr...'],
   },
   {
@@ -73,16 +75,5 @@ export const ACTIONS: ActionDefinition[] = [
     minStage: GrowthStage.Juvenile,
     animation: 'walk',
     messages: ['¡Qué buen paseo!', '¡Mira, una mariposa!', '¡Aire fresco!'],
-  },
-  {
-    id: 'sleep',
-    name: 'Dormir',
-    icon: '🌙',
-    effects: {},
-    minEnergy: 0,
-    cooldownMs: 5 * S,
-    minStage: GrowthStage.Baby,
-    animation: 'sleep',
-    messages: ['Zzz...', 'Dulces sueños'],
   },
 ];

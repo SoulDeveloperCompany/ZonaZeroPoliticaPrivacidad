@@ -9,7 +9,8 @@ import type { Pet } from '../../systems/pet/Pet';
 import { GrowthStage, PetLocation } from '../../systems/pet/PetTypes';
 import { petSVG, sexIcon, stageName, type Screen } from '../common';
 import { esc, onAction, priceHTML, setHTML } from '../dom';
-import { confirmModal, promptModal, showModal, showToast } from '../Overlay';
+import { chooseName } from '../NameChooser';
+import { confirmModal, showModal, showToast } from '../Overlay';
 
 export class FamilyScreen implements Screen {
   id = 'family';
@@ -105,7 +106,7 @@ export class FamilyScreen implements Screen {
       case 'adopt': {
         const offer = bs.adoption.getOffers().find((o) => o.id === id);
         if (!offer) return;
-        const name = await promptModal('Adoptar', 'Nombre de tu nueva mascota', offer.name);
+        const name = await chooseName('¿Cómo se llamará?', offer.speciesId, offer.name);
         if (name === null) return;
         const r = bs.adopt(id, name);
         if (r.ok) showToast(`¡${r.baby.name} llegó ${r.location === PetLocation.Ranch ? 'al rancho' : 'a casa'}!`, 'good');
@@ -148,7 +149,7 @@ export class FamilyScreen implements Screen {
   }
 
   private async breed(pet: Pet, partner: Partner): Promise<void> {
-    const name = await promptModal('¡Va a nacer una cría!', '¿Cómo se llamará?', '');
+    const name = await chooseName('¡Va a nacer una cría! ¿Cómo se llamará?', pet.data.speciesId);
     if (name === null) return;
     const r = BreedingSystem.instance.breed(pet.id, partner, name);
     if (!r.ok) {

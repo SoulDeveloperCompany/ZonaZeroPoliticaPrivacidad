@@ -1,11 +1,16 @@
 /**
- * Pantalla principal: la casa con la mascota seleccionada, sus stats,
- * la barra de crecimiento y los botones de cuidado.
+ * Pantalla principal a pantalla completa: la mascota en su habitación.
+ *
+ * - Arriba: nombre (tocar para renombrar), etapa y barra de crecimiento.
+ * - Centro: la mascota. Tocarla = acariciar; si duerme, la despierta (se enfada).
+ * - Abajo: botones flotantes de cuidado sobre el suelo.
+ * - Los stats están ocultos y se abren con el botón "Estado".
  */
 import { Clock, formatDuration } from '../../core/Clock';
 import { EventBus } from '../../core/EventBus';
 import { GameState } from '../../core/GameState';
 import { DataRegistry } from '../../data/DataRegistry';
+import { renderRoomSVG } from '../../sprites/RoomScene';
 import { EconomySystem } from '../../systems/economy/EconomySystem';
 import { GrowthSystem } from '../../systems/growth/GrowthSystem';
 import { InteractionSystem, describeFailure } from '../../systems/interaction/InteractionSystem';
@@ -20,10 +25,12 @@ import {
   spriteKey,
   stageName,
   statBarHTML,
+  statLevel,
   updateStatBars,
   type Screen,
 } from '../common';
 import { el, esc, onAction } from '../dom';
+import { chooseName } from '../NameChooser';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -34,22 +41,33 @@ const PARTICLES: Record<string, string[]> = {
   bath: ['🫧', '🫧', '💧'],
   spin: ['⭐', '✨', '🎯'],
   walk: ['🌳', '🦋', '🌼'],
-  sleep: ['🌙', '💤', '⭐'],
+  wake: ['💢', '😾', '💤'],
 };
 
-/** Dónde se dibuja cada mueble en la habitación (% izquierda, % arriba). */
-const FURNITURE_POS: Record<string, [number, number]> = {
-  furn_bed: [6, 64],
-  furn_ball: [80, 70],
-  furn_tub: [76, 40],
-  furn_plant: [6, 22],
-  furn_tv: [42, 6],
+/** Dónde se coloca cada mueble comprado en la habitación. */
+const FURNITURE_POS: Record<string, string> = {
+  furn_bed: 'left:3%;bottom:140px',
+  furn_ball: 'right:4%;bottom:140px',
+  furn_tv: 'left:4%;bottom:226px',
+  furn_tub: 'left:22%;bottom:222px',
+  furn_plant: 'right:22%;bottom:226px',
+};
+
+/** Burbuja de pensamiento con la necesidad más urgente. */
+const NEED_ICON: Partial<Record<string, string>> = {
+  hungry: '🍖',
+  dirty: '🫧',
+  sad: '🎾',
+  sick: '🤒',
+  tired: '🥱',
 };
 
 export class HomeScreen implements Screen {
   id = 'home';
   private root!: HTMLElement;
   private lastSprite = '';
+  private lastNight: boolean | null = null;
+  private statsOpen = false;
   private offs: (() => void)[] = [];
 
   mount(root: HTMLElement): void {
@@ -68,6 +86,7 @@ export class HomeScreen implements Screen {
       bus.on('economy:purchase', rerender),
       bus.on('interaction:performed', (e) => this.feedback(e.animation, e.deltas, e.message, e.coinsFound)),
       bus.on('pet:statsChanged', () => this.tick()),
+      bus.on('pet:sleepChanged', () => this.tick()),
     ];
     this.render();
   }
@@ -85,66 +104,66 @@ export class HomeScreen implements Screen {
   render(): void {
     const pet = this.pet;
     const home = PetManager.instance.homePets();
-    const tabs = home
-      .map(
-        (p) => `<button class="pet-tab ${p.id === pet?.id ? 'active' : ''}" data-act="select" data-id="${p.id}">
-          <span class="pet-tab-sprite">${petSVG(p)}</span><span>${esc(p.name)}</span></button>`,
-      )
-      .join('');
+    const tabs =
+      home.length > 1
+        ? `<div class="pet-switch">${home
+            .map((p) => `<button class="pet-switch-btn ${p.id === pet?.id ? 'active' : ''}" data-act="select" data-id="${p.id}" aria-label="${esc(p.name)}">${petSVG(p)}</button>`)
+            .join('')}</div>`
+        : '';
+
+    this.lastSprite = '';
+    this.lastNight = null;
 
     if (!pet) {
-      this.root.innerHTML = `<div class="pet-tabs">${tabs}</div><div class="empty">No hay mascotas en casa. Trae una del rancho en <b>Familia</b>.</div>`;
+      this.root.innerHTML = `<div class="home"><div class="room-bg">${renderRoomSVG(false)}</div>
+        <div class="home-empty card">No hay mascotas en casa. Trae una del rancho en <b>Familia</b>.</div></div>`;
       return;
     }
 
+    const actions = DataRegistry.instance
+      .allActions()
+      .filter((a) => a.button !== false)
+      .map(
+        (a) => `<button class="dock-btn" data-act="action" data-id="${a.id}">
+          <span class="dock-icon">${a.icon}</span><span class="dock-name">${a.name}</span><span class="dock-badge"></span></button>`,
+      )
+      .join('');
+
     this.root.innerHTML = `
-      <div class="pet-tabs">${tabs}</div>
-      <div class="room">
+      <div class="home">
+        <div class="room-bg"></div>
         ${this.furnitureHTML()}
-        <div class="pet-name">${esc(pet.name)} ${sexIcon(pet.data.sex)} <span class="tag">${stageName(pet)}</span></div>
+        <div class="home-top">
+          ${tabs}
+          <button class="name-chip" data-act="rename">${esc(pet.name)} ${sexIcon(pet.data.sex)} <span class="tag">${stageName(pet)}</span> <span class="edit">✏️</span></button>
+          <div class="growth-mini"><div class="growth-label"></div><div class="bar bar-growth"><div class="bar-fill"></div></div></div>
+        </div>
+        <button class="stats-btn" data-act="stats" aria-label="Ver estado">📊<span class="stats-alert" hidden></span></button>
+        <div class="need-bubble" hidden></div>
         <div class="pet-stage-wrap"><div class="pet-sprite" data-act="pet-touch"></div></div>
         <div class="fx-layer"></div>
-      </div>
-      ${pet.isEscaped ? this.escapedHTML(pet) : this.careHTML(pet)}
-    `;
-    this.lastSprite = '';
+        ${pet.isEscaped ? this.escapedHTML(pet) : `<div class="dock">${actions}
+          <button class="dock-btn" data-act="backpack"><span class="dock-icon">🎒</span><span class="dock-name">Mochila</span></button></div>`}
+        <div class="stats-sheet ${this.statsOpen ? 'open' : ''}">
+          <div class="sheet-head"><b>Estado de ${esc(pet.name)}</b><button class="icon-close" data-act="stats" aria-label="Cerrar">✕</button></div>
+          <div class="stats">${STAT_KEYS.map((k) => statBarHTML(k, pet.stats[k])).join('')}</div>
+          <p class="hint sheet-hint"></p>
+        </div>
+      </div>`;
     this.tick();
   }
 
   private furnitureHTML(): string {
     return GameState.instance.data.furniture
-      .map((id) => {
-        const [x, y] = FURNITURE_POS[id] ?? [50, 70];
-        return `<span class="furniture" style="left:${x}%;top:${y}%">${DataRegistry.instance.getItem(id).icon}</span>`;
-      })
+      .map((id) => `<span class="furniture" style="${FURNITURE_POS[id] ?? 'left:50%;bottom:160px'}">${DataRegistry.instance.getItem(id).icon}</span>`)
       .join('');
-  }
-
-  private careHTML(pet: Pet): string {
-    const actions = DataRegistry.instance
-      .allActions()
-      .map(
-        (a) => `<button class="action" data-act="action" data-id="${a.id}">
-          <span class="action-icon">${a.icon}</span><span class="action-name">${a.name}</span>
-          <span class="action-cd"></span></button>`,
-      )
-      .join('');
-    return `
-      <div class="growth">
-        <div class="growth-label"></div>
-        <div class="bar bar-growth"><div class="bar-fill"></div></div>
-      </div>
-      <div class="stats">${STAT_KEYS.map((k) => statBarHTML(k, pet.stats[k])).join('')}</div>
-      <div class="actions">${actions}
-        <button class="action" data-act="backpack"><span class="action-icon">🎒</span><span class="action-name">Mochila</span></button>
-      </div>`;
   }
 
   private escapedHTML(pet: Pet): string {
     return `
-      <div class="card escaped">
+      <div class="escaped-card card">
         <h3>💨 ¡${esc(pet.name)} se ha escapado!</h3>
-        <p>Le faltaron cuidados y se fue de casa. Nunca está en peligro, pero si no das con su rastro a tiempo se quedará con otra familia.</p>
+        <p>Le faltaron cuidados y se fue de casa. Si no das con su rastro a tiempo, se quedará con otra familia.</p>
         <p class="escape-timer"></p>
         <button class="btn btn-primary" data-act="search">🔎 Buscar por el barrio</button>
         <button class="btn" data-act="gps">📡 Usar Collar GPS (${EconomySystem.instance.quantity('special_gps')})</button>
@@ -157,14 +176,25 @@ export class HomeScreen implements Screen {
   tick(): void {
     const pet = this.pet;
     if (!pet || !this.root) return;
+
+    // Fondo de día o de noche según si duerme
+    const night = pet.data.sleeping;
+    if (night !== this.lastNight) {
+      const bg = this.root.querySelector<HTMLElement>('.room-bg');
+      if (bg) bg.innerHTML = renderRoomSVG(night);
+      this.root.querySelector('.home')?.classList.toggle('night', night);
+      this.lastNight = night;
+    }
+
     const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
     if (sprite) {
       if (pet.isEscaped) {
-        sprite.innerHTML = '<div class="escaped-sign">🏚️<br/><small>Casa vacía...</small></div>';
+        sprite.innerHTML = '';
       } else {
-        const key = spriteKey(pet);
+        const key = spriteKey(pet) + (pet.isDrowsy ? '|drowsy' : '');
         if (key !== this.lastSprite) {
           sprite.innerHTML = petSVG(pet);
+          sprite.classList.toggle('drowsy', pet.isDrowsy);
           this.lastSprite = key;
         }
       }
@@ -185,39 +215,59 @@ export class HomeScreen implements Screen {
       return;
     }
 
+    // Stats (ocultos en la hoja inferior) y aviso si alguno está mal
     const values: Partial<Record<PetStatKey, number>> = { ...pet.stats, beauty: pet.effectiveBeauty };
     updateStatBars(this.root, values);
+    const bad = (['hunger', 'happiness', 'energy', 'health', 'hygiene'] as PetStatKey[]).some(
+      (k) => statLevel(k, pet.stats[k]) === 'bad',
+    );
+    const alert = this.root.querySelector<HTMLElement>('.stats-alert');
+    if (alert) alert.hidden = !bad;
+    const sheetHint = this.root.querySelector('.sheet-hint');
+    if (sheetHint) {
+      sheetHint.textContent = pet.data.sleeping
+        ? '💤 Está durmiendo. Se despertará sola al recuperar energía.'
+        : pet.isDrowsy
+          ? '🥱 Tiene sueño: pronto se irá a dormir.'
+          : '';
+    }
 
-    // Barra de crecimiento
+    // Burbuja de necesidad
+    const bubble = this.root.querySelector<HTMLElement>('.need-bubble');
+    if (bubble) {
+      const need = NEED_ICON[pet.mood];
+      bubble.hidden = !need;
+      if (need && bubble.textContent !== need) bubble.textContent = need;
+    }
+
+    // Barra de crecimiento (arriba)
     const g = GrowthSystem.instance.progress(pet);
     const label = this.root.querySelector('.growth-label');
     const fill = this.root.querySelector<HTMLElement>('.bar-growth .bar-fill');
     if (label && fill) {
       const boost = GrowthSystem.instance.growthMultiplier(pet, Clock.now()) > 1 ? ' ⏩x2' : '';
       label.innerHTML = g.next
-        ? `<b>${g.current.name}</b> → ${g.next.name} · faltan ${formatDuration(g.daysLeft * 3600_000)}${boost} <span class="hint">(día ${pet.data.ageDays.toFixed(1)})</span>`
-        : `<b>${g.current.name}</b> · día ${pet.data.ageDays.toFixed(1)}`;
+        ? `${g.current.name} → <b>${g.next.name}</b> · ${formatDuration(g.daysLeft * 3600_000)}${boost}`
+        : `${g.current.name} · día ${Math.floor(pet.data.ageDays)}`;
       fill.style.width = `${Math.round(g.progress * 100)}%`;
     }
 
-    // Estado de los botones (bloqueado / cooldown)
+    // Botones flotantes: bloqueado / cooldown
     const now = Clock.now();
-    this.root.querySelectorAll<HTMLElement>('.action[data-act="action"]').forEach((btn) => {
-      const id = btn.dataset.id!;
-      const blocked = InteractionSystem.instance.check(pet, id, now);
-      const cd = btn.querySelector('.action-cd')!;
+    this.root.querySelectorAll<HTMLElement>('.dock-btn[data-act="action"]').forEach((btn) => {
+      const blocked = InteractionSystem.instance.check(pet, btn.dataset.id!, now);
+      const badge = btn.querySelector('.dock-badge')!;
+      const locked = blocked?.ok === false && blocked.reason === 'locked';
       btn.classList.toggle('blocked', !!blocked);
-      btn.classList.toggle('locked', blocked?.ok === false && blocked.reason === 'locked');
-      cd.textContent =
+      btn.classList.toggle('locked', locked);
+      badge.textContent =
         blocked?.ok === false && blocked.reason === 'cooldown'
           ? `${Math.ceil((blocked.remainingMs ?? 0) / 1000)}s`
-          : blocked?.ok === false && blocked.reason === 'locked'
+          : locked
             ? '🔒'
-            : '';
-      if (id === 'sleep') {
-        btn.querySelector('.action-name')!.textContent = pet.data.sleeping ? 'Despertar' : 'Dormir';
-        btn.querySelector('.action-icon')!.textContent = pet.data.sleeping ? '☀️' : '🌙';
-      }
+            : blocked?.ok === false && blocked.reason === 'sleeping'
+              ? '💤'
+              : '';
     });
   }
 
@@ -229,8 +279,18 @@ export class HomeScreen implements Screen {
       case 'select':
         PetManager.instance.select(t.dataset.id!);
         return;
+      case 'stats':
+        this.statsOpen = !this.statsOpen;
+        this.root.querySelector('.stats-sheet')?.classList.toggle('open', this.statsOpen);
+        return;
+      case 'rename':
+        if (pet) void this.rename(pet);
+        return;
       case 'pet-touch':
-        if (pet?.isActive) this.doAction(pet, 'pet');
+        if (!pet?.isActive) return;
+        // Tocarla mientras duerme la despierta (y se enfada); si no, la acaricia
+        if (pet.data.sleeping) InteractionSystem.instance.wakeUp(pet.id);
+        else InteractionSystem.instance.perform(pet.id, 'pet');
         return;
       case 'action':
         if (pet) this.doAction(pet, t.dataset.id!);
@@ -260,13 +320,21 @@ export class HomeScreen implements Screen {
     }
   }
 
+  private async rename(pet: Pet): Promise<void> {
+    const name = await chooseName('Nombre de tu mascota', pet.data.speciesId, pet.name);
+    if (name && PetManager.instance.rename(pet.id, name)) {
+      showToast(`Ahora se llama ${name} ✨`, 'good');
+      this.render();
+    }
+  }
+
   private doAction(pet: Pet, actionId: string): void {
+    const blocked = InteractionSystem.instance.check(pet, actionId);
+    if (blocked && !blocked.ok) {
+      showToast(describeFailure(blocked), 'bad');
+      return;
+    }
     if (actionId === 'feed') {
-      const blocked = InteractionSystem.instance.check(pet, 'feed');
-      if (blocked && !blocked.ok) {
-        showToast(describeFailure(blocked), 'bad');
-        return;
-      }
       openFoodPicker(pet);
       return;
     }
@@ -302,7 +370,7 @@ export class HomeScreen implements Screen {
     if (coins) lines.push(`+${coins} 🪙`);
     lines.forEach((text, i) => {
       const node = el('span', 'float-text', text);
-      node.style.top = `${18 + i * 9}%`;
+      node.style.top = `${30 + i * 7}%`;
       node.style.animationDelay = `${i * 120}ms`;
       fx.appendChild(node);
       setTimeout(() => node.remove(), 2000);

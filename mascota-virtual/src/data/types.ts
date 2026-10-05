@@ -127,6 +127,8 @@ export interface ActionDefinition {
   animation: string;
   /** Mensajes de feedback aleatorios. */
   messages: string[];
+  /** false = no tiene botón propio (p. ej. acariciar se hace tocando a la mascota). */
+  button?: boolean;
 }
 
 /** Etapa de crecimiento. */

@@ -11,7 +11,6 @@ export const Feature = {
   Feed: 'feed',
   Pet: 'pet',
   Bathe: 'bathe',
-  Sleep: 'sleep',
   Play: 'play',
   Train: 'train',
   Walk: 'walk',
@@ -20,7 +19,7 @@ export const Feature = {
   Breed: 'breed',
 } as const;
 
-const BASIC = [Feature.Feed, Feature.Pet, Feature.Bathe, Feature.Sleep];
+const BASIC = [Feature.Feed, Feature.Pet, Feature.Bathe];
 
 export const STAGES: StageDefinition[] = [
   {

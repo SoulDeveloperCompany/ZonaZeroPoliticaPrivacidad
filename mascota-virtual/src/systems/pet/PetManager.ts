@@ -107,6 +107,16 @@ export class PetManager {
     return pet;
   }
 
+  /** Cambia el nombre de una mascota. */
+  rename(id: string, name: string): boolean {
+    const pet = this.get(id);
+    const clean = name.trim().slice(0, 16);
+    if (!pet || !clean) return false;
+    pet.data.name = clean;
+    EventBus.instance.emit('pet:statsChanged', { petId: id });
+    return true;
+  }
+
   remove(id: string): void {
     this.state.pets = this.state.pets.filter((p) => p.id !== id);
     this.cache.delete(id);
@@ -156,7 +166,7 @@ export class PetManager {
       for (const pet of this.all()) {
         if (pet.isActive) {
           const wasSleeping = pet.data.sleeping;
-          pet.simulateDecay(stepDays, { furniture, offline });
+          pet.simulateDecay(stepDays, { furniture, offline, now: simNow });
           GrowthSystem.instance.advance(pet, stepDays, simNow);
           if (wasSleeping !== pet.data.sleeping && !offline) {
             EventBus.instance.emit('pet:sleepChanged', { petId: pet.id, sleeping: pet.data.sleeping });

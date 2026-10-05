@@ -171,6 +171,47 @@ describe('InteractionSystem', () => {
   });
 });
 
+describe('Rutina de sueño', () => {
+  it('se duerme sola con poca energía y se despierta sola al descansar', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Dormilón');
+    pamper(pet);
+    pet.stats.energy = 21;
+    advance(10 * 60 * 1000); // la energía baja de 20
+    expect(pet.data.sleeping).toBe(true);
+    for (let i = 0; i < 4 && pet.data.sleeping; i++) advance(HOUR / 2);
+    expect(pet.data.sleeping).toBe(false);
+  });
+
+  it('despertarla al tocarla quita felicidad y aguanta despierta un rato', () => {
+    const pet = PetManager.instance.createStarter(Species.Cat, 'Siesta');
+    pamper(pet);
+    pet.stats.energy = 15;
+    pet.data.sleeping = true;
+    const happiness = pet.stats.happiness;
+    expect(InteractionSystem.instance.wakeUp(pet.id)).toBe(true);
+    expect(pet.data.sleeping).toBe(false);
+    expect(pet.stats.happiness).toBe(happiness - GameConfig.SLEEP.wakePenalty);
+    advance(60 * 1000);
+    expect(pet.data.sleeping).toBe(false); // periodo de gracia
+  });
+
+  it('mientras duerme no se pueden hacer acciones', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Zzz');
+    pet.data.sleeping = true;
+    pet.stats.hunger = 70;
+    const r = InteractionSystem.instance.perform(pet.id, 'feed');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe('sleeping');
+  });
+
+  it('se puede cambiar el nombre', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Viejo');
+    expect(PetManager.instance.rename(pet.id, '  Nuevo  ')).toBe(true);
+    expect(pet.name).toBe('Nuevo');
+    expect(PetManager.instance.rename(pet.id, '   ')).toBe(false);
+  });
+});
+
 describe('EconomySystem', () => {
   it('comprar descuenta monedas y añade al inventario', () => {
     const coins = EconomySystem.instance.coins;

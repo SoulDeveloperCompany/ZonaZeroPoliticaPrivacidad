@@ -26,12 +26,25 @@ export const GameConfig = {
     hygiene: -7,
   },
 
-  /** Mientras duerme: recupera energía y el resto baja más lento. */
+  /**
+   * Rutina de sueño autónoma: la mascota decide sola cuándo dormir.
+   * Con energía baja le entra sueño y se duerme; se despierta sola al
+   * descansar. Si el jugador la despierta, pierde felicidad.
+   */
   SLEEP: {
     energyPerDay: 45,
     decayMultiplier: 0.4,
-    autoSleepEnergy: 8,
-    autoWakeEnergy: 98,
+    /** Por debajo de esta energía se duerme seguro. */
+    autoSleepEnergy: 20,
+    /** Entre autoSleep y esto tiene sueño y puede dormirse en cualquier momento. */
+    drowsyEnergy: 40,
+    /** Probabilidad (por día de juego) de dormirse cuando tiene sueño. */
+    drowsyChancePerDay: 3,
+    autoWakeEnergy: 95,
+    /** Felicidad que pierde si la despiertan. */
+    wakePenalty: 10,
+    /** Tras despertarla, aguanta despierta este tiempo (salvo agotamiento total). */
+    wokenGraceMs: 10 * 60 * 1000,
   },
 
   /** Reglas de salud (por día de juego). */

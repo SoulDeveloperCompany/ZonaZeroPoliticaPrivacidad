@@ -27,6 +27,11 @@ export class ShopScreen implements Screen {
       if (act === 'tab') {
         this.tab = t.dataset.id as ItemCategory;
         this.render();
+      } else if (act === 'info') {
+        // Muestra/oculta la explicación del objeto sobre su tarjeta
+        const card = t.closest('.shop-card');
+        root.querySelectorAll('.shop-card.show-info').forEach((c) => c !== card && c.classList.remove('show-info'));
+        card?.classList.toggle('show-info');
       } else if (act === 'buy') {
         const r = EconomySystem.instance.buy(t.dataset.id!);
         if (r.ok) showToast('¡Comprado! 🛍️', 'good');
@@ -47,21 +52,23 @@ export class ShopScreen implements Screen {
     const items = eco.shopItems(this.tab);
     this.root.innerHTML = `
       <div class="tabs">${TABS.map((t) => `<button class="tab ${t.id === this.tab ? 'active' : ''}" data-act="tab" data-id="${t.id}">${t.label}</button>`).join('')}</div>
-      <div class="shop-list">
+      <div class="shop-grid">
         ${items
           .map((item) => {
             const owned = eco.owns(item.id);
             const qty = eco.quantity(item.id);
             const afford = eco.canAfford(item.price);
-            const extra =
-              item.category === 'accessory' && item.beautyBonus ? ` · +${item.beautyBonus} ✨` : qty && !owned ? ` · tienes ${qty}` : '';
+            const bonus = item.category === 'accessory' && item.beautyBonus ? `<span class="shop-bonus">+${item.beautyBonus} ✨</span>` : '';
             return `
-              <div class="shop-item ${owned ? 'owned' : ''}">
-                ${itemIcon(item.id)}
-                <div class="shop-info"><b>${esc(item.name)}</b><small>${esc(item.description)}${extra}</small></div>
-                <button class="btn btn-buy ${afford && !owned ? 'btn-primary' : ''}" data-act="buy" data-id="${item.id}" ${owned || !afford ? 'disabled' : ''}>
+              <div class="shop-card ${owned ? 'owned' : ''}" data-item="${item.id}">
+                <button class="info-btn" data-act="info" data-id="${item.id}" aria-label="¿Para qué sirve?">?</button>
+                ${qty && !owned ? `<span class="shop-qty">x${qty}</span>` : ''}
+                <div class="shop-art">${itemIcon(item.id)}</div>
+                <b class="shop-name">${esc(item.name)}</b>${bonus}
+                <button class="price-btn ${afford && !owned ? '' : 'off'}" data-act="buy" data-id="${item.id}" ${owned || !afford ? 'disabled' : ''}>
                   ${owned ? '✔ Tuyo' : priceHTML(item.price)}
                 </button>
+                <div class="shop-info" data-act="info" data-id="${item.id}"><b>${esc(item.name)}</b><p>${esc(item.description)}</p><small>Toca para cerrar</small></div>
               </div>`;
           })
           .join('')}

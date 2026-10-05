@@ -112,6 +112,8 @@ export interface PetData {
   genes: PetGenes;
   location: PetLocation;
   sleeping: boolean;
+  /** Última vez que el jugador la despertó (ms reales). */
+  wokenAt: number | null;
 
   /** Cuidado acumulado en etapas tempranas (media ponderada). */
   care: { sum: number; weight: number };
