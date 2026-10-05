@@ -2,6 +2,7 @@
 # Publica el juego en GitHub Pages (rama gh-pages) como un único index.html.
 #   bash scripts/deploy-pages.sh
 # Quedará en https://souldevelopercompany.github.io/ZonaZeroPoliticaPrivacidad/
+# También sube public-pages/ (p. ej. .../privacidad.html, la política de Patitas para Play Store)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 npm run artifact >/dev/null
@@ -20,6 +21,7 @@ html = head + page[:title_end] + '</head><body>' + page[title_end:] + '</body></
 (out / 'index.html').write_text(html, encoding='utf8')
 (out / '.nojekyll').write_text('')
 PY
+cp public-pages/* "$OUT"/   # privacidad.html, etc.
 cd "$OUT"
 git init -q -b gh-pages
 git add -A
