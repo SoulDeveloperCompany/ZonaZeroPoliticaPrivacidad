@@ -6,6 +6,7 @@ import { MissionSystem } from '../src/systems/games/MissionSystem';
 import { OnlineService } from '../src/systems/online/OnlineService';
 import { EventBus } from '../src/core/EventBus';
 import { GameConfig } from '../src/core/GameConfig';
+import { OnlineConfig } from '../src/core/OnlineConfig';
 import { GameState } from '../src/core/GameState';
 import { seededRng, setRng } from '../src/core/random';
 import { BreedingSystem } from '../src/systems/breeding/BreedingSystem';
@@ -41,6 +42,8 @@ beforeEach(() => {
   GameState.instance.reset(now);
   PetManager.instance.rebuild();
   SaveSystem.instance.storage = new MemoryStorage();
+  // Los tests nunca deben hablar con el servidor real (la URL de serie está en OnlineConfig)
+  OnlineConfig.DEFAULT_URL = '';
 });
 
 describe('PetSystem', () => {

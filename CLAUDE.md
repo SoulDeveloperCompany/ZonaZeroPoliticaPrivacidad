@@ -25,15 +25,15 @@ en la carpeta `mascota-virtual/`. Dueño: SoulDeveloperCompany. Todo se escribe 
 
 ## Lo que queda pendiente (empezar por aquí)
 
-1. **Desplegar el Apps Script** (necesita el navegador del usuario):
-   - Hoja ya creada en Drive: "Patitas servidor"
-     https://docs.google.com/spreadsheets/d/1Hz-FbeSrxDi3s-e4W1WRyfHUmvwj8REp6tw6mi-2-sw/edit
-     (se creó en la cuenta alex.san.otaku@gmail.com; confirmar con el usuario si es la correcta).
-   - Extensiones › Apps Script → pegar `server/patitas-apps-script.js` → Implementar › Aplicación web
-     (Ejecutar como: Yo · Acceso: Cualquier usuario) → copiar la URL `/exec`.
-2. Poner esa URL en `OnlineConfig.DEFAULT_URL`, probar la conexión (Ajustes › Servidor › Conectar)
-   y comprobar que se crean las pestañas.
-3. Volver a publicar la web: `bash scripts/deploy-pages.sh` (rama `gh-pages`) →
+1. ~~Desplegar el Apps Script~~ **Hecho (4 oct 2026).** Hoja "Patitas servidor" (cuenta alex.san.otaku@gmail.com):
+   https://docs.google.com/spreadsheets/d/1Hz-FbeSrxDi3s-e4W1WRyfHUmvwj8REp6tw6mi-2-sw/edit
+   Proyecto Apps Script "Patitas servidor", implementación "Patitas v1" (Aplicación web · Ejecutar como: Yo ·
+   Acceso: Cualquier usuario). URL ya puesta en `OnlineConfig.DEFAULT_URL`:
+   https://script.google.com/macros/s/AKfycbzmvc4tmCEkbueoR9mStgu76KszxhMY_RBHu7bBe3keccAw-EEML4QzEHzOTKxNV1VlxQ/exec
+   Si cambias el script: Implementar › Gestionar implementaciones › ✏️ › Versión nueva (así la URL no cambia).
+   Los tests ponen `OnlineConfig.DEFAULT_URL = ''` en `beforeEach` para no escribir en la hoja real.
+2. ~~Conectar la URL y comprobar las pestañas~~ **Hecho:** se crearon Jugadores, Adopciones, Parejas, Puntajes y Regalos.
+3. ~~Volver a publicar la web~~ **Hecho:** `bash scripts/deploy-pages.sh` (rama `gh-pages`) →
    https://souldevelopercompany.github.io/ZonaZeroPoliticaPrivacidad/
 4. Añadir como colaborador en GitHub a `carloseduardobonillapalma-lgtm` (Settings › Collaborators).
 5. Ideas aún no hechas: notificaciones locales en Android, sonidos, icono propio, nombre definitivo,
