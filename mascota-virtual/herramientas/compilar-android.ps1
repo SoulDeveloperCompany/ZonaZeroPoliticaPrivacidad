@@ -70,6 +70,15 @@ function Pedir-Clave([string]$aviso, [switch]$Confirmar) {
     return $t.Text
 }
 
+# Antes de pedir la contraseña: tipos, tests y configuración (herramientas/revisar.mjs)
+if ($Release) {
+    Push-Location $proyecto
+    node herramientas/revisar.mjs
+    $codigo = $LASTEXITCODE
+    Pop-Location
+    if ($codigo -ne 0) { throw 'La revisión encontró problemas (arriba). Corrígelos antes de compilar para Play.' }
+}
+
 $propiedades = Join-Path $proyecto 'android\keystore.properties'
 if ($Release -and -not $env:PATITAS_CLAVE) {
     if (-not (Test-Path $llave)) {

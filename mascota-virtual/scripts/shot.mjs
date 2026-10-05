@@ -17,21 +17,30 @@
  *   wait:<ms>                espera
  *   close                    cierra todas las ventanas abiertas
  *   shot:<nombre>            guarda <carpeta>/<nombre>.png
+ *
+ * Opción --play (justo después de la carpeta): capturas 1080x1920 en modo claro, listas para Play Store.
+ * Las peticiones al servidor real (Google Sheets) se bloquean: las capturas nunca escriben en la hoja.
  */
-import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+// playwright-core del proyecto (en Windows usa el Chrome instalado); si no, el del entorno en la nube
+const { chromium } = await import('playwright-core').catch(() => import('/opt/node-tools/node_modules/playwright/index.mjs'));
+const chrome = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe'].find(existsSync);
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const [outDir, ...steps] = process.argv.slice(2);
+const [outDir, ...resto] = process.argv.slice(2);
+const play = resto[0] === '--play';
+const steps = play ? resto.slice(1) : resto;
 mkdirSync(outDir, { recursive: true });
 
-const browser = await chromium.launch();
-const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, colorScheme: 'dark' })).newPage();
+const browser = await chromium.launch(chrome ? { executablePath: chrome } : {});
+const page = await (await browser.newContext({ ...(play ? { viewport: { width: 405, height: 720 }, deviceScaleFactor: 8 / 3, colorScheme: 'light' } : { viewport: { width: 390, height: 844 }, colorScheme: 'dark' }), hasTouch: true })).newPage();
+await page.route(/script\.google(usercontent)?\.com/, (r) => r.abort());
 const errors = [];
 page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
-page.on('console', (m) => m.type() === 'error' && errors.push('CONSOLE ' + m.text()));
+page.on('console', (m) => m.type() === 'error' && !/ERR_FAILED/.test(m.text()) && errors.push('CONSOLE ' + m.text()));
 
 const closeAll = async () => {
   for (let i = 0; i < 10 && (await page.$('.modal-backdrop')); i++) {
@@ -47,7 +56,7 @@ const debug = async (act, times = 1) => {
 };
 const SPECIES = ['dog', 'cat', 'rabbit', 'parrot', 'turtle', 'hamster'];
 
-await page.goto('file://' + join(root, 'artifact', 'preview.html'));
+await page.goto(pathToFileURL(join(root, 'artifact', 'preview.html')).href);
 await page.waitForTimeout(500);
 
 for (const step of steps) {

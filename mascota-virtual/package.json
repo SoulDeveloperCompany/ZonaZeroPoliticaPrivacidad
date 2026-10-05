@@ -13,7 +13,13 @@
     "android:open": "npx cap open android",
     "artifact": "node scripts/build-artifact.mjs",
     "shot": "node scripts/shot.mjs",
-    "test:server": "node scripts/test-server.mjs"
+    "test:server": "node scripts/test-server.mjs",
+    "mapa": "node herramientas/mapa.mjs",
+    "revisar": "node herramientas/revisar.mjs",
+    "apk": "powershell -NoProfile -ExecutionPolicy Bypass -File herramientas/compilar-android.ps1",
+    "publicar": "powershell -NoProfile -ExecutionPolicy Bypass -File herramientas/compilar-android.ps1 -Release",
+    "graficos": "node herramientas/graficos.mjs",
+    "android:iconos": "npx @capacitor/assets generate --android --assetPath recursos --iconBackgroundColor #ffb26b --splashBackgroundColor #fdf3e7 --splashBackgroundColorDark #1f1a16"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
@@ -23,6 +29,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
+    "playwright-core": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"
