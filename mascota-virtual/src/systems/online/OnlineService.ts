@@ -201,7 +201,9 @@ export class OnlineService {
   }
 
   async park(): Promise<RemoteParkPet[]> {
-    return (await this.call('GET', { accion: 'parque' })).lista ?? [];
+    const lista: RemoteParkPet[] = (await this.call('GET', { accion: 'parque' })).lista ?? [];
+    // Quien aún no ha adoptado sube una mascota vacía: no se muestra en el parque
+    return lista.filter((p) => p.nombre);
   }
 
   /** Mensaje amigable para un error de red. */

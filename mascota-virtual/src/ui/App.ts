@@ -72,6 +72,10 @@ export class App {
         buttons: [{ label: '¡Gracias!', act: 'close', primary: true }],
       });
     });
+    // Al elegir la primera mascota se sube enseguida (sin esperar a la siguiente sincronización)
+    bus.on('pet:created', ({ reason }) => {
+      if (reason === 'start') void GameManager.instance.syncOnline();
+    });
     bus.on('adoption:completed', ({ petName, coins }) => showToast(`🤝 ${petName} encontró un nuevo hogar. +${coins} 🪙`, 'good'));
 
     this.updateWallet();
