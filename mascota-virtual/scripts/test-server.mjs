@@ -63,8 +63,8 @@ const rk = get({ accion: 'ranking', competencia: 'agility_race', id: A });
 check(rk.lista[0].puntaje === 85 && rk.posicion === 2 && rk.lista[1].puntaje === 70, 'ranking guarda el mejor puntaje');
 // Regalos escritos a mano en la hoja
 ctx.doGet({ parameter: {} });
-const reg = sheets.Regalos || ctx.SpreadsheetApp.getActiveSpreadsheet().insertSheet('Regalos');
-if (!reg._rows.length) reg.appendRow(['regalo', 'para', 'monedas', 'estrellas', 'objeto', 'cantidad', 'mensaje', 'activo', 'entregados']);
+const reg = sheets.Regalos;
+check(reg && reg._rows.length === 3, 'la pestaña Regalos se crea sola con 2 ejemplos desactivados');
 reg.appendRow(['Bienvenida', 'todos', 500, 5, 'acc_crown', 1, '¡Gracias por probar Patitas!', 'SI', '']);
 reg.appendRow(['Solo para B', B, 100, 0, '', '', 'Para ti', 'SI', '']);
 reg.appendRow(['Apagado', 'todos', 999, 0, '', '', 'No debe llegar', 'NO', '']);

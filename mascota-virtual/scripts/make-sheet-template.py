@@ -44,7 +44,7 @@ def header(ws, cols, widths, auto):
         ws.column_dimensions[c.column_letter].width = widths[i - 1]
     ws.freeze_panes = 'A2'
 
-def text_cols(ws, letters, rows=1000):
+def text_cols(ws, letters, rows=300):
     for L in letters:
         for r in range(2, rows + 1):
             ws[f'{L}{r}'].number_format = '@'
@@ -106,12 +106,12 @@ ejemplos = [
 for r, row in enumerate(ejemplos, start=2):
     for c, value in enumerate(row, start=1):
         reg.cell(r, c, value)
-for r in range(2, 202):
+for r in range(2, 102):
     for c in range(1, 9):
         reg.cell(r, c).fill = EDIT_FILL
         reg.cell(r, c).border = Border(bottom=thin)
     reg.cell(r, 9).fill = AUTO_FILL
-for row in reg.iter_rows(min_row=1, max_row=202):
+for row in reg.iter_rows(min_row=1, max_row=102):
     for c in row:
         if c.row > 1:
             c.font = Font(name=FONT)
@@ -122,11 +122,11 @@ reg['I1'].comment = Comment('Lo rellena el servidor. No lo toques.', 'Patitas')
 
 dv_activo = DataValidation(type='list', formula1='"SI,NO"', allow_blank=True)
 reg.add_data_validation(dv_activo)
-dv_activo.add('H2:H201')
+dv_activo.add('H2:H101')
 dv_num = DataValidation(type='whole', operator='greaterThanOrEqual', formula1='0', allow_blank=True)
 reg.add_data_validation(dv_num)
-dv_num.add('C2:D201')
-dv_num.add('F2:F201')
+dv_num.add('C2:D101')
+dv_num.add('F2:F101')
 
 # ---------- Objetos (referencia) ----------
 obj = wb.create_sheet('Objetos')
@@ -138,7 +138,7 @@ for row in obj.iter_rows(min_row=2):
         c.font = Font(name=FONT)
 dv_obj = DataValidation(type='list', formula1=f"=Objetos!$A$2:$A${len(objetos) + 1}", allow_blank=True)
 reg.add_data_validation(dv_obj)
-dv_obj.add('E2:E201')
+dv_obj.add('E2:E101')
 
 for ws in wb.worksheets:
     for row in ws.iter_rows(min_row=1, max_row=1):

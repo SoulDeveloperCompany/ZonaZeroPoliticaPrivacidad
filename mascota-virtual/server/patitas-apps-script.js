@@ -32,8 +32,18 @@ function hoja_(nombre) {
     COLUMNAS_TEXTO[nombre].forEach((c) => h.getRange(c + ':' + c).setNumberFormat('@'));
     h.appendRow(HOJAS[nombre]);
     h.setFrozenRows(1);
+    if (nombre === 'Regalos') {
+      // Ejemplos desactivados (activo = NO) para que se vea cómo rellenarla
+      h.appendRow(['Bienvenida', 'todos', 300, 3, 'acc_bow', 1, '¡Gracias por probar Patitas! Aquí tienes un lazo de regalo.', 'NO', '']);
+      h.appendRow(['Regalo de prueba', 'PEGA-AQUI-EL-ID', 1000, 20, 'food_cake', 5, 'Para probar el juego sin límites.', 'NO', '']);
+    }
   }
   return h;
+}
+
+/** Crea todas las pestañas si faltan (se llama al conectar). También puedes ejecutarla a mano. */
+function prepararHojas() {
+  Object.keys(HOJAS).forEach(hoja_);
 }
 function filas_(nombre) {
   const h = hoja_(nombre);
@@ -123,6 +133,7 @@ function doPost(e) {
   try {
     switch (d.accion) {
       case 'sincronizar': {
+        prepararHojas();
         const m = mascota_(d.mascota);
         let j = filas_('Jugadores').find((f) => f.id === d.id) || { pendiente: 0 };
         const monedas = num_(j.pendiente, 1e9);
@@ -217,6 +228,7 @@ function doGet(e) {
       return responder_({ ok: true, lista: lista.slice(-15).map((f) => ({ id: String(f.id).slice(0, 8), apodo: f.apodo, nombre: f.mascota, especie: f.especie, etapa: f.etapa, sexo: f.sexo, genes: JSON.parse(f.genes || '{}'), accesorios: JSON.parse(f.accesorios || '{}') })) });
     }
     default:
+      prepararHojas();
       return responder_({ ok: true, servidor: 'Patitas', version: 1 });
   }
 }
