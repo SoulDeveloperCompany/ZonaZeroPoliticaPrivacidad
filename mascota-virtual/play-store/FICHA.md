@@ -73,7 +73,7 @@ URL de eliminación de datos: .../privacidad.html#eliminar-datos
 
 ## Pendiente para publicar
 
-1. Quitar "🧪 Herramientas de prueba" de Ajustes antes de la versión de tienda.
-2. Generar el **AAB firmado** (keystore propia) y subirlo a **Prueba cerrada**.
+1. ~~Quitar "🧪 Herramientas de prueba"~~ → la versión de tienda se compila sin ellas (`VITE_TIENDA=1`).
+2. Generar el **AAB firmado** con `COMPILAR PARA PLAY.bat` y subirlo a **Prueba cerrada**.
    Las cuentas personales nuevas necesitan una prueba cerrada con **al menos 12 testers durante 14 días**
    antes de poder pedir acceso a Producción.

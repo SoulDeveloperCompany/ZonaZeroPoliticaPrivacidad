@@ -38,9 +38,20 @@ en la carpeta `mascota-virtual/`. Dueño: SoulDeveloperCompany. Todo se escribe 
 4. Añadir como colaborador en GitHub a `carloseduardobonillapalma-lgtm` (Settings › Collaborators).
 5. **Play Store (5 oct 2026):** app "Patitas" creada en la cuenta "Soul Hope" (ID app 4971985063553773767),
    ficha, configuración de la tienda y TODAS las declaraciones completas (ver `mascota-virtual/play-store/FICHA.md`).
-   Falta: quitar "Herramientas de prueba", generar AAB firmado, subirlo a prueba cerrada (12 testers × 14 días).
+   Falta: subir el AAB a prueba cerrada (12 testers × 14 días) y pedir acceso a producción.
 6. Ideas aún no hechas: notificaciones locales en Android, sonidos, icono propio, nombre definitivo,
    firma y publicación en Google Play.
+
+## Compilar para Google Play (Windows, copia del compilador de Mi Zoológico)
+
+- Copia local del repo: `C:\Users\Jorge Ramirez\Documents\patitas` (el juego está en `mascota-virtual\`).
+- Doble clic en `mascota-virtual\COMPILAR PARA PLAY.bat` → `herramientas\compilar-android.ps1 -Release`:
+  sube versionName (1.0.0 → 1.1.0; `-Parche`, `-SinSubir`), compila SIN herramientas de prueba (`VITE_TIENDA=1`),
+  genera `android\app\build\outputs\bundle\release\app-release.aab` firmado y abre Play Console.
+- Llave: `Documents\llaves\patitas-subida.jks`, alias `patitas`. La primera compilación la crea y pide inventar la
+  contraseña; nunca se guarda (llega a Gradle por `PATITAS_CLAVE`). `android\keystore.properties` no se sube a git.
+- `PROBAR EN CELULAR (APK).bat` → APK de prueba (id `...patitas.prueba`, con herramientas de prueba).
+- Usa el Java 21 de `Documents\herramientas-android` y el SDK de Android de Unity (igual que Mi Zoológico).
 
 ## Comandos (dentro de `mascota-virtual/`)
 
