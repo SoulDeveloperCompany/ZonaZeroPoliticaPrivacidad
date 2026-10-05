@@ -64,6 +64,13 @@ Sin anuncios y sin compras con dinero real: todas las monedas se ganan jugando.
 | Aplicaciones de salud | Ninguna |
 | Precio | Gratis |
 
+## Estado en Play Console (5 oct 2026)
+
+App creada (ID 4971985063553773767). Hecho: ficha (textos, icono, gráfico, 6 capturas), configuración de la tienda,
+y todas las declaraciones de "Contenido de la aplicación". Clasificación IARC: PEGI 3 / ESRB Para todos, con "Interacción de usuarios".
+En el cuestionario se respondió **Sí** a interacción entre usuarios (nombre de mascota visible) y **No** a bloquear/denunciar/moderación.
+URL de eliminación de datos: .../privacidad.html#eliminar-datos
+
 ## Pendiente para publicar
 
 1. Quitar "🧪 Herramientas de prueba" de Ajustes antes de la versión de tienda.

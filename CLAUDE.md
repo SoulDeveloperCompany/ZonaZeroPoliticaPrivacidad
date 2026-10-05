@@ -36,7 +36,10 @@ en la carpeta `mascota-virtual/`. Dueño: SoulDeveloperCompany. Todo se escribe 
 3. ~~Volver a publicar la web~~ **Hecho:** `bash scripts/deploy-pages.sh` (rama `gh-pages`) →
    https://souldevelopercompany.github.io/ZonaZeroPoliticaPrivacidad/
 4. Añadir como colaborador en GitHub a `carloseduardobonillapalma-lgtm` (Settings › Collaborators).
-5. Ideas aún no hechas: notificaciones locales en Android, sonidos, icono propio, nombre definitivo,
+5. **Play Store (5 oct 2026):** app "Patitas" creada en la cuenta "Soul Hope" (ID app 4971985063553773767),
+   ficha, configuración de la tienda y TODAS las declaraciones completas (ver `mascota-virtual/play-store/FICHA.md`).
+   Falta: quitar "Herramientas de prueba", generar AAB firmado, subirlo a prueba cerrada (12 testers × 14 días).
+6. Ideas aún no hechas: notificaciones locales en Android, sonidos, icono propio, nombre definitivo,
    firma y publicación en Google Play.
 
 ## Comandos (dentro de `mascota-virtual/`)
