@@ -14,6 +14,8 @@ export class NameChooser {
     private root: HTMLElement,
     private speciesId?: string,
     initial = '',
+    /** Se llama cada vez que cambia si hay un nombre válido. */
+    private onChange?: (valid: boolean) => void,
   ) {
     this.random = randomName(speciesId);
     root.classList.add('name-chooser');
@@ -38,6 +40,12 @@ export class NameChooser {
         root.querySelector('.random-name')!.textContent = this.random;
       }
     });
+    root.querySelector('#name-input')!.addEventListener('input', () => this.notify());
+    queueMicrotask(() => this.notify());
+  }
+
+  private notify(): void {
+    this.onChange?.(this.value().length > 0);
   }
 
   /** Cambia de especie (en la pantalla de adopción) y regenera el aleatorio. */
@@ -53,6 +61,7 @@ export class NameChooser {
     (this.root.querySelector('.name-custom') as HTMLElement).hidden = mode !== 'custom';
     (this.root.querySelector('.name-random') as HTMLElement).hidden = mode !== 'random';
     if (mode === 'custom') (this.root.querySelector('#name-input') as HTMLInputElement).focus();
+    this.notify();
   }
 
   /** Nombre elegido ('' si el modo personalizado está vacío). */
@@ -89,7 +98,10 @@ export function chooseName(title: string, speciesId?: string, current = ''): Pro
         finish(name);
       },
     });
-    chooser = new NameChooser(modal.body.querySelector('.name-slot') as HTMLElement, speciesId, current);
+    const okBtn = modal.root.querySelector<HTMLElement>('[data-act="ok"]')!;
+    chooser = new NameChooser(modal.body.querySelector('.name-slot') as HTMLElement, speciesId, current, (valid) =>
+      okBtn.classList.toggle('btn-off', !valid),
+    );
     // Cerrar tocando fuera = cancelar
     const obs = new MutationObserver(() => {
       if (!modal.root.isConnected) {

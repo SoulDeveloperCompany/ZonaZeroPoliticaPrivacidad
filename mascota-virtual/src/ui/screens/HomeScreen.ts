@@ -16,8 +16,9 @@ import { GrowthSystem } from '../../systems/growth/GrowthSystem';
 import { InteractionSystem, describeFailure } from '../../systems/interaction/InteractionSystem';
 import { PetManager } from '../../systems/pet/PetManager';
 import type { Pet } from '../../systems/pet/Pet';
-import { STAT_KEYS, type PetStatKey } from '../../systems/pet/PetTypes';
+import { STAT_KEYS, STAT_LABELS, type PetStatKey } from '../../systems/pet/PetTypes';
 import {
+  STAT_HELP,
   STAT_ICONS,
   itemIcon,
   petSVG,
@@ -30,6 +31,7 @@ import {
   type Screen,
 } from '../common';
 import { el, esc, onAction } from '../dom';
+import { openBath } from '../minigames/BathScene';
 import { chooseName } from '../NameChooser';
 import { showModal, showToast } from '../Overlay';
 
@@ -42,6 +44,7 @@ const PARTICLES: Record<string, string[]> = {
   spin: ['⭐', '✨', '🎯'],
   walk: ['🌳', '🦋', '🌼'],
   wake: ['💢', '😾', '💤'],
+  no: ['❌'],
 };
 
 /** Dónde se coloca cada mueble comprado en la habitación. */
@@ -143,10 +146,15 @@ export class HomeScreen implements Screen {
         <div class="pet-stage-wrap"><div class="pet-sprite" data-act="pet-touch"></div></div>
         <div class="fx-layer"></div>
         ${pet.isEscaped ? this.escapedHTML(pet) : `<div class="dock">${actions}
-          <button class="dock-btn" data-act="backpack"><span class="dock-icon">🎒</span><span class="dock-name">Mochila</span></button></div>`}
+          <button class="dock-btn" data-act="backpack"><span class="dock-icon">🎒</span><span class="dock-name">Mochila</span></button></div>
+          <div class="food-tray" hidden>
+            <div class="tray-head"><span>Arrastra la comida hasta ${esc(pet.name)} 👆</span><button class="icon-close" data-act="close-tray" aria-label="Cerrar">✕</button></div>
+            <div class="tray-items"></div>
+          </div>`}
         <div class="stats-sheet ${this.statsOpen ? 'open' : ''}">
           <div class="sheet-head"><b>Estado de ${esc(pet.name)}</b><button class="icon-close" data-act="stats" aria-label="Cerrar">✕</button></div>
           <div class="stats">${STAT_KEYS.map((k) => statBarHTML(k, pet.stats[k])).join('')}</div>
+          <p class="stat-help-box" hidden></p>
           <p class="hint sheet-hint"></p>
         </div>
       </div>`;
@@ -286,6 +294,19 @@ export class HomeScreen implements Screen {
       case 'rename':
         if (pet) void this.rename(pet);
         return;
+      case 'stat-help': {
+        const key = t.dataset.stat as PetStatKey;
+        const box = this.root.querySelector<HTMLElement>('.stat-help-box');
+        if (!box) return;
+        const same = !box.hidden && box.dataset.key === key;
+        box.hidden = same;
+        box.dataset.key = key;
+        box.innerHTML = `<b>${STAT_ICONS[key]} ${STAT_LABELS[key]}:</b> ${STAT_HELP[key]}`;
+        return;
+      }
+      case 'close-tray':
+        this.toggleTray(false);
+        return;
       case 'pet-touch':
         if (!pet?.isActive) return;
         // Tocarla mientras duerme la despierta (y se enfada); si no, la acaricia
@@ -335,11 +356,102 @@ export class HomeScreen implements Screen {
       return;
     }
     if (actionId === 'feed') {
-      openFoodPicker(pet);
+      this.toggleTray(true);
+      return;
+    }
+    if (actionId === 'bathe') {
+      void openBath(pet);
       return;
     }
     const r = InteractionSystem.instance.perform(pet.id, actionId);
     if (!r.ok) showToast(describeFailure(r), 'bad');
+  }
+
+  // ---------- Dar de comer arrastrando ----------
+
+  /** Muestra la bandeja de comida (en lugar de los botones) o la oculta. */
+  private toggleTray(open: boolean): void {
+    const tray = this.root.querySelector<HTMLElement>('.food-tray');
+    const dock = this.root.querySelector<HTMLElement>('.dock');
+    const pet = this.pet;
+    if (!tray || !dock || !pet) return;
+    tray.hidden = !open;
+    dock.hidden = open;
+    if (!open) return;
+    const fav = pet.species.favoriteFoods;
+    const items = tray.querySelector<HTMLElement>('.tray-items')!;
+    items.innerHTML = EconomySystem.instance
+      .inventoryBy('food')
+      .map(
+        ({ item, quantity }) => `<div class="food-item" data-food="${item.id}" title="${esc(item.name)}">
+          <span class="food-emoji">${item.icon}</span>
+          <span class="food-qty">${quantity === Infinity ? '∞' : `x${quantity}`}</span>
+          ${fav.includes(item.id) ? '<span class="food-fav">😍</span>' : ''}
+          <small>${esc(item.name)}</small></div>`,
+      )
+      .join('');
+    items.querySelectorAll<HTMLElement>('.food-item').forEach((node) => this.makeDraggable(node));
+  }
+
+  /** Arrastrar un alimento: si se suelta sobre la mascota, se lo come. */
+  private makeDraggable(node: HTMLElement): void {
+    node.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const home = this.root.querySelector<HTMLElement>('.home')!;
+      const homeRect = home.getBoundingClientRect();
+      const ghost = el('span', 'food-ghost', node.querySelector('.food-emoji')!.textContent ?? '');
+      home.appendChild(ghost);
+      const move = (ev: PointerEvent) => {
+        ghost.style.transform = `translate(${ev.clientX - homeRect.left - 30}px, ${ev.clientY - homeRect.top - 60}px)`;
+        this.root.querySelector('.pet-sprite')?.classList.toggle('feed-target', this.overPet(ev.clientX, ev.clientY - 30));
+      };
+      move(e);
+      node.setPointerCapture(e.pointerId);
+      node.addEventListener('pointermove', move);
+      const up = (ev: PointerEvent) => {
+        node.removeEventListener('pointermove', move);
+        node.removeEventListener('pointerup', up);
+        node.removeEventListener('pointercancel', up);
+        this.root.querySelector('.pet-sprite')?.classList.remove('feed-target');
+        if (this.overPet(ev.clientX, ev.clientY - 30)) this.feedWith(node.dataset.food!, ghost);
+        else {
+          ghost.classList.add('ghost-back');
+          setTimeout(() => ghost.remove(), 250);
+          if (Math.abs(ev.clientY - e.clientY) < 10) showToast('Arrastra la comida hasta tu mascota 👆');
+        }
+      };
+      node.addEventListener('pointerup', up);
+      node.addEventListener('pointercancel', up);
+    });
+  }
+
+  private overPet(x: number, y: number): boolean {
+    const r = this.root.querySelector('.pet-sprite')?.getBoundingClientRect();
+    if (!r) return false;
+    return x > r.left + r.width * 0.15 && x < r.right - r.width * 0.15 && y > r.top + r.height * 0.2 && y < r.bottom;
+  }
+
+  /** La mascota recibe la comida: se la come o niega con la cabeza. */
+  private feedWith(itemId: string, ghost: HTMLElement): void {
+    const pet = this.pet;
+    if (!pet) return ghost.remove();
+    const r = InteractionSystem.instance.perform(pet.id, 'feed', { itemId });
+    if (!r.ok) {
+      ghost.classList.add('ghost-back');
+      setTimeout(() => ghost.remove(), 250);
+      if (r.reason === 'notHungry') {
+        this.feedback('no', {}, '🙅 ¡No quiero, ya comí!');
+      } else showToast(describeFailure(r), 'bad');
+      return;
+    }
+    // La comida "entra" en la boca
+    const sprite = this.root.querySelector<HTMLElement>('.pet-sprite')!.getBoundingClientRect();
+    const home = this.root.querySelector<HTMLElement>('.home')!.getBoundingClientRect();
+    ghost.style.transition = 'transform 0.35s ease-in, opacity 0.35s';
+    ghost.style.transform = `translate(${sprite.left - home.left + sprite.width / 2 - 30}px, ${sprite.top - home.top + sprite.height * 0.45}px) scale(0.25)`;
+    ghost.style.opacity = '0';
+    setTimeout(() => ghost.remove(), 400);
+    this.toggleTray(false);
   }
 
   /** Animación + partículas + textos flotantes tras una interacción. */
@@ -376,30 +488,6 @@ export class HomeScreen implements Screen {
       setTimeout(() => node.remove(), 2000);
     });
   }
-}
-
-/** Elegir comida para alimentar. */
-export function openFoodPicker(pet: Pet): void {
-  const foods = EconomySystem.instance.inventoryBy('food');
-  const fav = pet.species.favoriteFoods;
-  const body = `<div class="item-grid">${foods
-    .map(
-      ({ item, quantity }) => `<button class="item-card" data-act="food" data-id="${item.id}">
-        ${itemIcon(item.id)}<b>${esc(item.name)}</b>
-        <small>${quantity === Infinity ? '∞' : `x${quantity}`}${fav.includes(item.id) ? ' · 😍 favorita' : ''}</small></button>`,
-    )
-    .join('')}</div><p class="hint">Compra más comida en la Tienda.</p>`;
-  showModal({
-    title: `¿Qué le das a ${esc(pet.name)}?`,
-    body,
-    buttons: [{ label: 'Cancelar', act: 'close' }],
-    onAction: (act, t, modal) => {
-      if (act !== 'food') return;
-      const r = InteractionSystem.instance.perform(pet.id, 'feed', { itemId: t.dataset.id });
-      if (!r.ok) showToast(describeFailure(r), 'bad');
-      modal.close();
-    },
-  });
 }
 
 /** Mochila: usar medicinas/aceleradores y equipar accesorios. */

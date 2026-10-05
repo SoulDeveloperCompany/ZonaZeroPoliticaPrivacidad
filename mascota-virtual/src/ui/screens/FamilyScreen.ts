@@ -71,7 +71,8 @@ export class FamilyScreen implements Screen {
       </div>
       <div class="card">
         <h3>🏡 Centro de adopción</h3>
-        <p class="hint">Crías de otros jugadores buscando hogar (se renuevan cada 2 h).</p>
+        <p class="hint">Crías que otros jugadores ponen en adopción.</p>
+        ${offers.length ? '' : '<p class="empty-note">Ahora mismo nadie ha puesto crías en adopción. Cuando alguien publique una, aparecerá aquí.</p>'}
         ${offers
           .map((o) => {
             const sp = DataRegistry.instance.getSpecies(o.speciesId);

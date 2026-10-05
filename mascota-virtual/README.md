@@ -23,6 +23,17 @@ npm test             # 23 tests de la lógica
 - En ⚙️ Ajustes → "🧪 Herramientas de prueba" puedes adelantar el tiempo o darte monedas
   (**quitar antes de publicar**).
 
+## Atajos para iterar rápido
+
+```bash
+npm run artifact     # genera artifact/patitas.html (todo en un archivo, para el artefacto de Claude)
+                     # y artifact/preview.html (para abrir en el navegador sin servidor)
+npm run shot -- <carpeta> new:dog:Toby shot:casa "click:.dock-btn[data-id=bathe]" "rub:.bath-pet:40" shot:baño
+python3 scripts/sheet.py hoja.png carpeta/casa.png carpeta/baño.png   # une capturas en una imagen
+```
+
+Los pasos disponibles de `shot` están documentados al principio de `scripts/shot.mjs`.
+
 ## Cómo generar el APK de Android
 
 **Opción A — GitHub Actions (sin instalar nada):** cada push que toque `mascota-virtual/` ejecuta

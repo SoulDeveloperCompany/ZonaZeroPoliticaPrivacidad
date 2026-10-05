@@ -1,16 +1,12 @@
 /**
  * Servicio de adopción pública.
  *
- * Hoy funciona en local simulando a otros jugadores. Está detrás de una
+ * Está detrás de una
  * interfaz para cambiarlo más adelante por un backend online (Firebase,
  * Supabase...) sin tocar el resto del juego.
  */
-import { Clock } from '../../core/Clock';
 import { GameState } from '../../core/GameState';
-import { pick, randInt, rng, uid } from '../../core/random';
-import { DataRegistry } from '../../data/DataRegistry';
 import type { Price } from '../../data/types';
-import { Pet } from '../pet/Pet';
 import { Sex, type PetGenes } from '../pet/PetTypes';
 
 /** Una cría publicada por otro jugador. */
@@ -31,18 +27,16 @@ export interface AdoptionService {
   takeOffer(id: string): AdoptionOffer | null;
 }
 
-const OWNER_NAMES = ['Sofía', 'Mateo', 'Valentina', 'Lucas', 'Camila', 'Diego', 'Isabella', 'Leo'];
-const REFRESH_MS = 2 * 60 * 60 * 1000;
-
-/** Implementación local: genera ofertas que se renuevan cada 2 horas. */
+/**
+ * Implementación local: todavía no hay servidor, así que nadie más puede
+ * publicar crías. El centro de adopción queda vacío hasta conectar el
+ * multijugador (bastará con implementar `AdoptionService` contra el backend).
+ */
 export class LocalAdoptionService implements AdoptionService {
   getOffers(): AdoptionOffer[] {
     const state = GameState.instance.data;
-    const now = Clock.now();
-    if (now >= state.adoptionRefreshAt || state.adoptionOffers.length === 0) {
-      state.adoptionOffers = Array.from({ length: 3 }, () => this.generateOffer());
-      state.adoptionRefreshAt = now + REFRESH_MS;
-    }
+    // Limpia ofertas simuladas que pudieran venir de partidas antiguas
+    if (state.adoptionOffers.length) state.adoptionOffers = [];
     return state.adoptionOffers;
   }
 
@@ -51,19 +45,5 @@ export class LocalAdoptionService implements AdoptionService {
     const offer = state.adoptionOffers.find((o) => o.id === id) ?? null;
     state.adoptionOffers = state.adoptionOffers.filter((o) => o.id !== id);
     return offer;
-  }
-
-  private generateOffer(): AdoptionOffer {
-    const species = pick(DataRegistry.instance.allSpecies());
-    const premium = rng() < 0.25;
-    return {
-      id: uid('offer'),
-      name: pick(species.nameSuggestions),
-      speciesId: species.id,
-      sex: rng() < 0.5 ? Sex.Male : Sex.Female,
-      genes: Pet.randomGenes(species),
-      ownerName: pick(OWNER_NAMES),
-      price: premium ? { stars: randInt(3, 5) } : { coins: randInt(15, 25) * 10 },
-    };
   }
 }

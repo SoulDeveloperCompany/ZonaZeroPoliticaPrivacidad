@@ -100,7 +100,7 @@ export class InteractionSystem {
         const itemId = opts.itemId ?? 'food_basic';
         const item = DataRegistry.instance.getItem(itemId);
         if (item.category !== 'food') return { ok: false, reason: 'invalid' };
-        if (pet.stats.hunger < 5) return { ok: false, reason: 'notHungry' };
+        if (pet.stats.hunger < 15) return { ok: false, reason: 'notHungry' };
         if (!item.free && !EconomySystem.instance.consume(itemId)) return { ok: false, reason: 'noItem' };
         const effects: StatDeltas = { ...(item.effects ?? {}) };
         if (pet.species.favoriteFoods.includes(item.id)) {

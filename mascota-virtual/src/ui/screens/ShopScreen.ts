@@ -51,7 +51,7 @@ export class ShopScreen implements Screen {
     const eco = EconomySystem.instance;
     const items = eco.shopItems(this.tab);
     this.root.innerHTML = `
-      <div class="tabs">${TABS.map((t) => `<button class="tab ${t.id === this.tab ? 'active' : ''}" data-act="tab" data-id="${t.id}">${t.label}</button>`).join('')}</div>
+      <div class="tabs shop-tabs">${TABS.map((t) => `<button class="tab ${t.id === this.tab ? 'active' : ''}" data-act="tab" data-id="${t.id}">${t.label}</button>`).join('')}</div>
       <div class="shop-grid">
         ${items
           .map((item) => {

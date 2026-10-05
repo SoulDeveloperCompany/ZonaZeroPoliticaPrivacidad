@@ -27,7 +27,11 @@ export class NewPetScreen implements Screen {
         <p class="hint">El sexo se decide al nacer. 1 hora real = 1 día en el juego.</p>
         <button class="btn btn-primary btn-big" data-act="create">¡Adoptar!</button>
       </div>`;
-    this.chooser = new NameChooser(root.querySelector('.name-slot') as HTMLElement, this.speciesId);
+    // El botón "Adoptar" queda apagado hasta que haya un nombre
+    const createBtn = root.querySelector<HTMLElement>('[data-act="create"]')!;
+    this.chooser = new NameChooser(root.querySelector('.name-slot') as HTMLElement, this.speciesId, '', (valid) =>
+      createBtn.classList.toggle('btn-off', !valid),
+    );
     onAction(root, (act, t) => {
       if (act === 'species') {
         this.speciesId = t.dataset.id!;
@@ -36,7 +40,7 @@ export class NewPetScreen implements Screen {
       } else if (act === 'create') {
         const name = this.chooser.value();
         if (!name) {
-          showToast('Escribe un nombre o usa uno aleatorio', 'bad');
+          showToast('Primero ponle un nombre ✏️', 'bad');
           return;
         }
         PetManager.instance.createStarter(this.speciesId, name);
