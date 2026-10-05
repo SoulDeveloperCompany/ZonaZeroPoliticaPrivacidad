@@ -1,14 +1,35 @@
 apply plugin: 'com.android.application'
 
+// Firma para Google Play: se lee de android/keystore.properties (no se sube a GitHub).
+// La contraseña llega por la variable PATITAS_CLAVE: herramientas/compilar-android.ps1 la pide sin guardarla.
+// Si el archivo no existe, la versión release se compila sin firmar.
+def firmaArchivo = rootProject.file('keystore.properties')
+def firma = new Properties()
+if (firmaArchivo.exists()) {
+    firmaArchivo.withInputStream { firma.load(it) }
+}
+def claveEntorno = System.getenv('PATITAS_CLAVE')
+
 android {
+    signingConfigs {
+        if (firmaArchivo.exists()) {
+            release {
+                storeFile file(firma['storeFile'])
+                storePassword firma['storePassword'] ?: claveEntorno
+                keyAlias firma['keyAlias']
+                keyPassword firma['keyPassword'] ?: firma['storePassword'] ?: claveEntorno
+            }
+        }
+    }
     namespace = "com.souldevelopercompany.patitas"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.souldevelopercompany.patitas"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Número de versión automático: minutos desde el 1-ene-2026 (siempre sube, no hay que tocarlo)
+        versionCode((int) ((System.currentTimeMillis() - 1767225600000L) / 60000L))
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -17,9 +38,16 @@ android {
         }
     }
     buildTypes {
+        // La versión de prueba se instala aparte (no reemplaza la de Play ni su partida)
+        debug {
+            applicationIdSuffix '.prueba'
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (firmaArchivo.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

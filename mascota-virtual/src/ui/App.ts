@@ -25,6 +25,9 @@ import { NewPetScreen } from './screens/NewPetScreen';
 import { ParkScreen } from './screens/ParkScreen';
 import { ShopScreen } from './screens/ShopScreen';
 
+/** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
+const HERRAMIENTAS = import.meta.env.VITE_TIENDA !== '1';
+
 const NAV: { id: string; icon: string; label: string; create: () => Screen }[] = [
   { id: 'home', icon: '🏠', label: 'Casa', create: () => new HomeScreen() },
   { id: 'shop', icon: '🛍️', label: 'Tienda', create: () => new ShopScreen() },
@@ -176,13 +179,13 @@ export class App {
           <button class="btn" data-act="import">📥 Restaurar copia (importar)</button>
           <button class="btn btn-danger" data-act="reset">🗑️ Borrar partida</button>
         </div>
-        <details class="debug"><summary>🧪 Herramientas de prueba</summary>
-          <p class="hint">Para probar el crecimiento rápido. Quitar antes de publicar.</p>
+        ${HERRAMIENTAS ? `<details class="debug"><summary>🧪 Herramientas de prueba</summary>
+          <p class="hint">Para probar el crecimiento rápido. No aparecen en la versión de Google Play.</p>
           <button class="btn btn-sm" data-act="ff1">+1 hora</button>
           <button class="btn btn-sm" data-act="ff6">+6 horas</button>
           <button class="btn btn-sm" data-act="ff24">+1 día real</button>
           <button class="btn btn-sm" data-act="coins">+1000 🪙 +20 ⭐</button>
-        </details>
+        </details>` : ''}
         <p class="hint center">Patitas v0.1 · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
