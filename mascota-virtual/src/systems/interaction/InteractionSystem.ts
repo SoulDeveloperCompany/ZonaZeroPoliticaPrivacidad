@@ -116,12 +116,17 @@ export class InteractionSystem {
           happiness: (action.effects.happiness ?? 0) * (furniture.playHappiness ?? 1),
         });
         break;
-      case 'bathe':
+      case 'bathe': {
+        // Si ya estaba limpia, tanto baño la resfría
+        const cold = pet.stats.hygiene >= GameConfig.COLD.hygieneThreshold;
         deltas = pet.applyDeltas({
           ...action.effects,
           hygiene: (action.effects.hygiene ?? 0) * (furniture.bathHygiene ?? 1),
+          ...(cold ? { health: -GameConfig.COLD.healthDamage, happiness: -GameConfig.COLD.happinessDamage } : {}),
         });
+        if (cold) message = '🤧 ¡Achís! Se resfrió por tanto baño';
         break;
+      }
       case 'train': {
         deltas = pet.applyDeltas(action.effects);
         trickLearned = this.trainTrick(pet);

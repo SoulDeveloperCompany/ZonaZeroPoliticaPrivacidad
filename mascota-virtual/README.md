@@ -58,9 +58,12 @@ Para publicar en Google Play hace falta un APK/AAB **firmado** con tu keystore (
 | **InteractionSystem** | `src/systems/interaction/InteractionSystem.ts`, `src/data/actions.ts` | Alimentar (elige comida), jugar, bañar, entrenar trucos y pasear con botones flotantes; acariciar tocando a la mascota. Si duerme, tocarla la despierta y pierde felicidad. Cooldowns, energía mínima, monedas al azar, animación + partículas + textos flotantes. |
 | **EconomySystem** | `src/systems/economy/EconomySystem.ts`, `src/data/items.ts` | Monedas y Estrellas, tienda (comida, accesorios, muebles, aceleradores, medicina, especiales), inventario, accesorios visibles en la mascota, muebles con bonus pasivos, recompensa diaria con racha. |
 | **EventSystem** | `src/systems/competition/EventSystem.ts`, `src/ui/minigames/Minigames.ts` | Solo adultos. Carrera de agilidad (saltar obstáculos), concurso de belleza (pasarela con timing), show de trucos (memoria). Nota = stats + minijuego, 1-5 estrellas, recompensas y ranking. |
-| **BreedingSystem** | `src/systems/breeding/BreedingSystem.ts`, `AdoptionService.ts` | Adultos de la misma especie y sexo opuesto (tuyos o de otros jugadores, simulados). Herencia de color, patrón, tamaño y stats con mutación. Máx. 3 en casa, resto al rancho. Adopción pública de crías. |
+| **BreedingSystem** | `src/systems/breeding/BreedingSystem.ts` | Adultos de la misma especie y sexo opuesto (tuyos o de otros jugadores vía servidor). Herencia de color, patrón, tamaño y stats con mutación. Máx. 3 en casa, resto al rancho. Adopción pública de crías. |
 | **SaveSystem** | `src/systems/save/SaveSystem.ts`, `AlbumSystem.ts`, `Storage.ts` | Guardado JSON automático (Capacitor Preferences en Android), tiempo offline simulado con resumen "Mientras no estabas...", migración de versiones, copia de seguridad, álbum de recuerdos con "foto" de cada momento. |
-| **Parque** | `src/systems/park/ParkService.ts` | Visitantes simulados para saludar. Interfaz `ParkNetwork` lista para conectar el multijugador real. |
+| **Parque** | `src/systems/park/ParkService.ts` | Mascotas de jugadores conectados en los últimos 30 minutos (servidor). |
+| **Minijuegos** | `src/systems/games/GamesSystem.ts`, `src/data/games.ts`, `src/ui/minigames/PlayGames.ts` | 6 juegos que se desbloquean por etapa (Burbujas y Vasos de bebé, Atrapa golosinas y Memoria de cachorro, Saltarín y Ensayo de trucos de juvenil), récords y tope diario de monedas. |
+| **Misiones diarias** | `src/systems/games/MissionSystem.ts`, `src/data/missions.ts` | 3 misiones al día según la etapa y premio extra por completarlas. |
+| **Servidor** | `src/systems/online/OnlineService.ts`, `server/` | Google Sheets + Apps Script: parque, adopción y parejas entre jugadores, ranking global. Ver `server/LEEME.md`. |
 
 ## Equivalencias con el diseño para Unity
 
@@ -90,7 +93,7 @@ solo hay que reemplazar `renderPetSVG`.
 
 ## Pendiente / siguiente paso
 
-- Multijugador online real (parque, adopción y parejas entre jugadores): necesita un backend (p. ej. Firebase o Supabase).
+- Migrar el servidor de Google Sheets a Firebase o Supabase cuando haya muchos jugadores (solo cambia `OnlineService.ts`).
 - Notificaciones locales en Android ("¡tu mascota tiene hambre!").
 - Sonidos y música.
 - Icono y pantalla de carga propios, nombre definitivo del juego.

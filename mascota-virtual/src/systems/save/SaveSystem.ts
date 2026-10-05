@@ -9,7 +9,6 @@ import { Clock } from '../../core/Clock';
 import { EventBus } from '../../core/EventBus';
 import { GameConfig } from '../../core/GameConfig';
 import { GameState, SAVE_VERSION, createEmptyGameData, type GameData } from '../../core/GameState';
-import { BreedingSystem } from '../breeding/BreedingSystem';
 import { Pet } from '../pet/Pet';
 import { PetManager } from '../pet/PetManager';
 import type { GrowthStage, PetData } from '../pet/PetTypes';
@@ -112,7 +111,6 @@ export class SaveSystem {
     ];
     try {
       PetManager.instance.update(offlineMs, true);
-      BreedingSystem.instance.update();
     } finally {
       offs.forEach((off) => off());
     }

@@ -50,6 +50,9 @@ export interface GameEvents {
     stars: number;
   };
 
+  // --- Minijuegos ---
+  'game:finished': { petId: string; gameId: string; score: number };
+
   // --- Crianza ---
   'breeding:born': { babyId: string; parentA: string; parentB: string };
   'adoption:completed': { petName: string; coins: number };
@@ -58,6 +61,10 @@ export interface GameEvents {
   'album:added': { entry: MemoryEntry };
   'save:loaded': { offlineMs: number };
   'save:saved': { at: number };
+
+  // --- Servidor ---
+  'online:status': { status: string };
+  'online:synced': { coins: number; adopted: number };
 
   // --- UI genérica ---
   'ui:toast': { text: string; kind?: 'info' | 'good' | 'bad' };

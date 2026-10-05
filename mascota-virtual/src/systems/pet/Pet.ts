@@ -73,7 +73,7 @@ export class Pet {
         hunger: 30,
         energy: 90,
         health: 100,
-        hygiene: 90,
+        hygiene: 70,
         // Los bebés empiezan con una fracción de su potencial genético
         agility: Math.round(genes.baseAgility * 0.4),
         beauty: Math.round(genes.baseBeauty * 0.5),
@@ -96,6 +96,8 @@ export class Pet {
       parents: opts.parents ?? null,
       lastBredAtDay: null,
       listedAt: null,
+      adoptionOfferId: null,
+      partnerListingId: null,
       competitions: 0,
       bestRating: 0,
     };

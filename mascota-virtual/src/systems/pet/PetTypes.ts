@@ -143,8 +143,11 @@ export interface PetData {
   parents: [string, string] | null;
   lastBredAtDay: number | null;
 
-  /** Adopción pública: cuándo se publicó. */
+  /** Adopción pública: cuándo se publicó y su id en el servidor. */
   listedAt: number | null;
+  adoptionOfferId: string | null;
+  /** Anuncio en el servidor si está ofrecida como pareja. */
+  partnerListingId: string | null;
 
   /** Estadísticas de competición. */
   competitions: number;

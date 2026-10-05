@@ -1,8 +1,9 @@
-/** Parque: socializar con otras mascotas (visitantes simulados hasta tener servidor). */
+/** Parque: socializar con las mascotas de otros jugadores conectados. */
 import { DataRegistry } from '../../data/DataRegistry';
 import { Feature } from '../../data/stages';
 import { renderPetSVG } from '../../sprites/PetSprite';
 import { GrowthSystem } from '../../systems/growth/GrowthSystem';
+import { OnlineService } from '../../systems/online/OnlineService';
 import { ParkService } from '../../systems/park/ParkService';
 import { PetManager } from '../../systems/pet/PetManager';
 import { petSVG, sexIcon, type Screen } from '../common';
@@ -12,12 +13,29 @@ import { showModal, showToast } from '../Overlay';
 export class ParkScreen implements Screen {
   id = 'park';
   private root!: HTMLElement;
+  private state: 'loading' | 'ok' | 'error' = 'loading';
+  private error = '';
 
   mount(root: HTMLElement): void {
     this.root = root;
     onAction(root, (act, t) => {
       if (act === 'visitor') this.openVisitor(t.dataset.id!);
+      if (act === 'refresh') void this.load();
     });
+    this.render();
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.state = 'loading';
+    this.render();
+    try {
+      await ParkService.instance.load();
+      this.state = 'ok';
+    } catch (err) {
+      this.state = 'error';
+      this.error = OnlineService.describe(err);
+    }
     this.render();
   }
 
@@ -29,7 +47,15 @@ export class ParkScreen implements Screen {
         <div class="card center"><p>🔒 El parque se desbloquea cuando tu mascota es <b>${stage?.name ?? 'mayor'}</b>.</p></div>`;
       return;
     }
-    const visitors = ParkService.instance.visitors();
+    const visitors = this.state === 'ok' ? ParkService.instance.visitors : [];
+    const status =
+      this.state === 'loading'
+        ? '<div class="park-status">Buscando amigos en el parque…</div>'
+        : this.state === 'error'
+          ? `<div class="park-status">${esc(this.error)}</div>`
+          : visitors.length
+            ? ''
+            : '<div class="park-status">Ahora mismo no hay nadie más en el parque. ¡Vuelve en un rato!</div>';
     this.root.innerHTML = `
       <h2 class="screen-title">🌳 Parque</h2>
       <div class="park">
@@ -43,13 +69,14 @@ export class ParkScreen implements Screen {
           )
           .join('')}
         <div class="park-pet park-me" style="left:40%;top:72%">${petSVG(pet)}<span>${esc(pet.name)}</span></div>
+        ${status}
       </div>
-      <p class="hint center">Toca a otra mascota para saludarla. 🌐 El multijugador online llegará con el servidor; por ahora los visitantes son simulados y cambian cada 30 minutos.</p>`;
+      <p class="hint center">Aquí aparecen las mascotas de jugadores conectados en los últimos 30 minutos. Toca a una para saludarla. <button class="btn btn-sm" data-act="refresh">↻ Actualizar</button></p>`;
   }
 
   private openVisitor(id: string): void {
     const pet = PetManager.instance.selected;
-    const v = ParkService.instance.visitors().find((x) => x.id === id);
+    const v = ParkService.instance.visitors.find((x) => x.id === id);
     if (!pet || !v) return;
     const species = DataRegistry.instance.getSpecies(v.speciesId);
     showModal({

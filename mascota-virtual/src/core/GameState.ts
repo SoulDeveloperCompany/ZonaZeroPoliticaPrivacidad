@@ -5,7 +5,7 @@
 import { GameConfig } from './GameConfig';
 import type { PetData } from '../systems/pet/PetTypes';
 import type { MemoryEntry } from '../systems/save/AlbumSystem';
-import type { AdoptionOffer } from '../systems/breeding/AdoptionService';
+import type { MissionProgress } from '../systems/games/MissionSystem';
 
 export const SAVE_VERSION = 1;
 
@@ -24,11 +24,17 @@ export interface GameData {
   daily: { lastClaimDay: string | null; streak: number };
   /** "petId:competitionId" -> ms en que se puede volver a competir. */
   competitionCooldowns: Record<string, number>;
-  /** Mascotas de otros jugadores (simuladas) en el centro de adopción. */
-  adoptionOffers: AdoptionOffer[];
-  adoptionRefreshAt: number;
   counters: { actions: number; competitions: number; births: number; rescues: number };
   tutorialDone: boolean;
+  /** Récord por minijuego. */
+  gameRecords: Record<string, number>;
+  /** Monedas ganadas hoy por minijuego (tope diario). */
+  gamesToday: { day: string; coins: Record<string, number> };
+  /** Misiones diarias. */
+  missions: { day: string; list: MissionProgress[]; bonusClaimed: boolean };
+  /** Identidad para el servidor (como en Mi Zoológico). */
+  player: { id: string; apodo: string };
+  online: { url: string; lastSync: number };
 }
 
 export function createEmptyGameData(now: number): GameData {
@@ -44,10 +50,13 @@ export function createEmptyGameData(now: number): GameData {
     album: [],
     daily: { lastClaimDay: null, streak: 0 },
     competitionCooldowns: {},
-    adoptionOffers: [],
-    adoptionRefreshAt: 0,
     counters: { actions: 0, competitions: 0, births: 0, rescues: 0 },
     tutorialDone: false,
+    gameRecords: {},
+    gamesToday: { day: '', coins: {} },
+    missions: { day: '', list: [], bonusClaimed: false },
+    player: { id: '', apodo: '' },
+    online: { url: '', lastSync: 0 },
   };
 }
 

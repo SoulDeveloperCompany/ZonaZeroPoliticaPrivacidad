@@ -145,7 +145,9 @@ small { color: var(--muted); }
 .stats-alert { position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--bad); border: 2px solid #fff; animation: blink 1.2s infinite; }
 
 .pet-stage-wrap {
-  position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+  --walk-x: 0px;
+  position: absolute; left: 50%; bottom: 84px; transform: translateX(calc(-50% + var(--walk-x)));
+  transition: transform 1.6s ease-in-out;
   width: min(80%, 340px); aspect-ratio: 1; max-width: 100%; z-index: 2;
 }
 .pet-sprite { width: 100%; height: 100%; cursor: pointer; }
@@ -437,15 +439,15 @@ small { color: var(--muted); }
 .bath-fill { height: 100%; width: 0; background: linear-gradient(90deg, #ffffff, #ffd6f0); transition: width 0.2s; }
 .bath-fill.rinse { background: linear-gradient(90deg, #6bc7ff, #3aa0f0); }
 .bath-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 24px; }
-.shower-head { position: absolute; top: 4px; right: 16px; font-size: 52px; transform: scaleX(-1); }
-.bath-pet { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); width: min(78%, 320px); aspect-ratio: 1; }
+.shower-head { position: absolute; top: 4px; right: 16px; font-size: 40px; transform: scaleX(-1); }
+.bath-pet { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); width: min(62%, 250px); aspect-ratio: 1; }
 .bath-pet svg { width: 100%; height: 100%; }
 .bath-pet.sparkle svg { animation: pose 0.6s ease-out 2; }
 .tub {
-  position: absolute; left: 6%; right: 6%; bottom: 0; height: 120px; border-radius: 20px 20px 60px 60px;
+  position: absolute; left: 50%; transform: translateX(-50%); width: min(66%, 260px); bottom: 8px; height: 64px; border-radius: 14px 14px 40px 40px;
   background: linear-gradient(#ffffff, #e5f0f5); box-shadow: inset 0 8px 0 #f6fbfd, 0 6px 0 rgba(0,0,0,0.08);
 }
-.tub::before { content: ''; position: absolute; left: 6%; right: 6%; top: -10px; height: 22px; border-radius: 50%; background: #8fd3f5; box-shadow: inset 0 4px 0 rgba(255,255,255,0.6); }
+.tub::before { content: ''; position: absolute; left: 6%; right: 6%; top: -7px; height: 15px; border-radius: 50%; background: #8fd3f5; box-shadow: inset 0 4px 0 rgba(255,255,255,0.6); }
 .foam-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .foam {
   position: absolute; border-radius: 50%;
@@ -463,3 +465,94 @@ small { color: var(--muted); }
 .bath-tool[disabled] { opacity: 0.5; }
 @keyframes foamIn { from { transform: scale(0.3); } }
 @keyframes fall { to { transform: translateY(70px); opacity: 0; } }
+
+/* ---------- Vida en reposo ---------- */
+.pet-svg .pet-eyes.blink { animation: blink 4.6s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.pet-sprite svg { transition: transform 0.25s; }
+.pet-sprite.face-left svg { transform: scaleX(-1); }
+.pet-sprite.walking .pet-root { animation: stepBob 0.3s ease-in-out infinite; }
+.idle-hop svg .pet-root { animation: hop 0.55s ease-out 2; }
+.idle-tilt svg .pet-head { animation: tilt 1.5s ease-in-out; }
+.idle-look svg .pet-head { animation: look 1.5s ease-in-out; }
+.idle-wiggle svg .pet-root { animation: wiggle 0.3s ease-in-out 3; }
+.idle-yawn svg .pet-head { animation: yawnHead 1.5s ease-in-out; }
+@keyframes stepBob { 50% { transform: translateY(-5px) rotate(2deg); } }
+@keyframes hop { 40% { transform: translateY(-18px) scale(0.97, 1.03); } 80% { transform: translateY(0) scale(1.05, 0.95); } }
+@keyframes tilt { 30%, 70% { transform: rotate(-10deg); } }
+@keyframes look { 25% { transform: rotate(-7deg) translateX(-3px); } 65% { transform: rotate(7deg) translateX(3px); } }
+@keyframes yawnHead { 40% { transform: translateY(2px) scale(1.04, 0.94); } 60% { transform: translateY(-2px) scale(0.98, 1.05); } }
+@media (prefers-reduced-motion: reduce) {
+  .pet-svg .pet-eyes.blink, .pet-sprite.walking .pet-root { animation: none; }
+  .pet-stage-wrap { transition: none; }
+}
+
+/* ---------- Jugar: lista de minijuegos ---------- */
+.missions-btn { top: 64px; }
+.missions-badge { position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 900; line-height: 18px; border: 2px solid #fff; }
+.games-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.game-card { position: relative; border: 0; background: #fff; border-radius: 18px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; box-shadow: var(--shadow); }
+.game-card.locked { background: #f1e6da; color: var(--muted); }
+.game-icon { font-size: 36px; }
+.game-card small { font-size: 11px; line-height: 1.25; }
+.game-meta { font-size: 11px; font-weight: 800; color: var(--primary-dark); }
+.game-warn { position: absolute; top: 6px; right: 6px; font-size: 10px; font-weight: 800; background: #fff1e4; border-radius: 999px; padding: 1px 6px; }
+.mg-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* Burbujas */
+.pg-field { position: relative; flex: 1; min-height: 320px; border-radius: 22px; overflow: hidden; touch-action: none; }
+.bubbles-field { background: linear-gradient(#c7ecff, #eaf7ff); }
+.pg-pet { position: absolute; left: 50%; bottom: 0; width: 150px; transform: translateX(-50%); opacity: 0.9; }
+.pg-pet svg { width: 100%; height: auto; }
+.bubble {
+  position: absolute; bottom: -80px; border: 0; padding: 0; border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #ffffff 0 18%, rgba(190,230,255,0.55) 45%, rgba(130,190,255,0.35) 100%);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8); animation: floatBubble linear forwards;
+}
+.bubble.golden { background: radial-gradient(circle at 32% 30%, #fff 0 18%, rgba(255,220,100,0.7) 50%, rgba(255,180,40,0.5) 100%); }
+.bubble.pop { animation: none; transform: scale(1.5); opacity: 0; transition: transform 0.18s, opacity 0.18s; }
+@keyframes floatBubble { to { transform: translateY(calc(-1 * (100vh))) translateX(20px); } }
+
+/* Vasos */
+.cups-row { position: relative; height: 170px; margin-top: 40px; }
+.cup { position: absolute; left: 50%; bottom: 0; width: 28%; margin-left: -14%; border: 0; background: none; padding: 0; transition: transform 0.3s ease-in-out; }
+.cup-body { display: block; font-size: 84px; line-height: 1; transition: transform 0.3s; position: relative; z-index: 2; }
+.cup-ball { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); font-size: 30px; opacity: 0; z-index: 1; }
+.cup.lift .cup-body { transform: translateY(-50px); }
+.cup.has-ball.lift .cup-ball { opacity: 1; }
+
+/* Atrapa golosinas */
+.catch-field { background: linear-gradient(#ffe9cf, #fff6ea 70%, #e8c9a0 70%); }
+.catcher { position: absolute; left: 0; bottom: 6px; width: 90px; height: 90px; }
+.catcher svg { width: 100%; height: 100%; }
+.catcher.yum svg { animation: bounce 0.35s ease-out; }
+.catcher.yuck svg { animation: shake 0.1s linear 4; }
+.falling { position: absolute; left: 0; top: 0; font-size: 32px; pointer-events: none; }
+
+/* Memoria */
+.memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.mem-card { aspect-ratio: 3 / 4; border: 0; border-radius: 14px; background: var(--primary); position: relative; font-size: 34px; box-shadow: var(--shadow); transition: transform 0.25s; transform-style: preserve-3d; }
+.mem-card span { position: absolute; inset: 0; display: grid; place-items: center; backface-visibility: hidden; border-radius: 14px; }
+.mem-back { color: #fff; font-size: 26px; }
+.mem-face { background: #fff; transform: rotateY(180deg); }
+.mem-card.flip { transform: rotateY(180deg); }
+.mem-card.done .mem-face { background: #e3f8e6; }
+
+/* ---------- Misiones ---------- */
+.missions { display: flex; flex-direction: column; gap: 8px; }
+.mission { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 14px; padding: 10px; }
+.mission.claimed { opacity: 0.6; }
+.mission-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mission-ok { color: var(--good); font-weight: 900; font-size: 20px; }
+.mission-bonus { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #fff1e4; border-radius: 14px; padding: 10px; font-weight: 800; font-size: 13px; }
+.mission-bonus.ready { outline: 2px solid var(--primary); }
+
+/* ---------- Servidor / estados online ---------- */
+.server-box { background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.server-box .field { margin: 6px 0; }
+.server-box input { width: 100%; border: 2px solid #ecdccb; border-radius: 12px; padding: 9px; font-size: 13px; }
+.server-status { font-size: 12.5px; font-weight: 700; align-self: center; }
+.park-status { position: absolute; left: 12px; right: 12px; top: 40%; text-align: center; background: rgba(255,255,255,0.9); border-radius: 14px; padding: 12px; font-weight: 700; font-size: 14px; }
+.refresh { float: right; }
+.family-breed .btn { margin-top: 6px; width: 100%; }
+.rank-name small { color: var(--muted); font-weight: 600; }

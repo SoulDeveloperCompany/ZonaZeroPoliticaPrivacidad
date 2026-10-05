@@ -6,14 +6,14 @@
  *   2. `start()` cobra inscripción y energía y devuelve una sesión.
  *   3. La UI ejecuta el minijuego y obtiene un rendimiento 0..1.
  *   4. `finish()` calcula la nota (stats + minijuego), la calificación 1-5
- *      estrellas, entrega recompensas y genera rivales para el ranking.
+ *      estrellas y entrega recompensas. El ranking global lo da el servidor.
  *
  * (Se llama EventSystem como en el diseño original; no confundir con EventBus.)
  */
 import { Clock } from '../../core/Clock';
 import { EventBus } from '../../core/EventBus';
 import { GameState } from '../../core/GameState';
-import { clamp, pick, randInt, randRange, rng } from '../../core/random';
+import { clamp, randRange } from '../../core/random';
 import { DataRegistry } from '../../data/DataRegistry';
 import { Feature } from '../../data/stages';
 import type { CompetitionDefinition } from '../../data/types';
@@ -33,13 +33,6 @@ export interface CompetitionSession {
   startedAt: number;
 }
 
-export interface Rival {
-  name: string;
-  speciesId: string;
-  score: number;
-  isPlayer: boolean;
-}
-
 export interface CompetitionResult {
   score: number;
   statScore: number;
@@ -47,11 +40,7 @@ export interface CompetitionResult {
   rating: number; // 1..5
   coins: number;
   stars: number;
-  ranking: Rival[];
-  position: number;
 }
-
-const RIVAL_NAMES = ['Bigotes', 'Chispa', 'Pelusa', 'Trueno', 'Galleta', 'Bombón', 'Rayo', 'Nube', 'Pirata', 'Lola'];
 
 export class EventSystem {
   private static _instance: EventSystem | null = null;
@@ -172,8 +161,6 @@ export class EventSystem {
       }
     }
 
-    const ranking = this.buildRanking(pet, score);
-    const position = ranking.findIndex((r) => r.isPlayer) + 1;
 
     EventBus.instance.emit('competition:finished', {
       petId: pet.id,
@@ -185,21 +172,7 @@ export class EventSystem {
     });
     EventBus.instance.emit('pet:statsChanged', { petId: pet.id });
 
-    return { score, statScore: statPart, minigameScore: gamePart, rating, coins, stars, ranking, position };
+    return { score, statScore: statPart, minigameScore: gamePart, rating, coins, stars };
   }
 
-  /** Genera 4 rivales simulados alrededor de la nota del jugador. */
-  private buildRanking(pet: Pet, score: number): Rival[] {
-    const species = DataRegistry.instance.allSpecies();
-    // Nombres sin repetir
-    const names = [...RIVAL_NAMES].sort(() => rng() - 0.5);
-    const rivals: Rival[] = Array.from({ length: 4 }, (_, i) => ({
-      name: names[i],
-      speciesId: pick(species).id,
-      score: clamp(score + randInt(-25, 20)),
-      isPlayer: false,
-    }));
-    rivals.push({ name: pet.name, speciesId: pet.data.speciesId, score, isPlayer: true });
-    return rivals.sort((a, b) => b.score - a.score);
-  }
 }

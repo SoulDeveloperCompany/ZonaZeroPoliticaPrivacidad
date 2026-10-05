@@ -2,6 +2,8 @@
 import { formatDuration } from '../../core/Clock';
 import { DataRegistry } from '../../data/DataRegistry';
 import { EventSystem, type CompetitionSession, type EnterCheck } from '../../systems/competition/EventSystem';
+import { OnlineService } from '../../systems/online/OnlineService';
+import type { Pet } from '../../systems/pet/Pet';
 import { PetManager } from '../../systems/pet/PetManager';
 import { GrowthStage } from '../../systems/pet/PetTypes';
 import { renderPetSVG } from '../../sprites/PetSprite';
@@ -104,34 +106,46 @@ export class EventsScreen implements Screen {
   private showResult(session: CompetitionSession, performance: number): void {
     const r = EventSystem.instance.finish(session, performance);
     const comp = DataRegistry.instance.getCompetition(session.competitionId);
-    const ranking = r.ranking
-      .map((rv, i) => {
-        const sprite = renderPetSVG({
-          speciesId: rv.speciesId,
-          genes: (() => {
-            const sp = DataRegistry.instance.getSpecies(rv.speciesId);
-            return { primaryColor: sp.primaryPalette[i % sp.primaryPalette.length], secondaryColor: sp.secondaryPalette[0], pattern: 'plain' as const, size: 1 };
-          })(),
-          stage: GrowthStage.Adult,
-          mood: rv.isPlayer ? 'happy' : 'normal',
-        });
-        const playerPet = PetManager.instance.get(session.petId);
-        const svg = rv.isPlayer && playerPet ? petSVG(playerPet) : sprite;
-        return `<div class="rank-row ${rv.isPlayer ? 'me' : ''}"><span class="rank-pos">${i + 1}º</span><span class="rank-sprite">${svg}</span><span class="rank-name">${esc(rv.name)}</span><span class="rank-score">${Math.round(rv.score)}</span></div>`;
-      })
-      .join('');
-    showModal({
+    const pet = PetManager.instance.get(session.petId);
+    const modal = showModal({
       title: `${comp.icon} Resultado`,
       className: 'result-modal',
       body: `
         <div class="result-stars">${starsHTML(r.rating)}</div>
-        <p class="center"><b>${Math.round(r.score)} puntos</b> · ${r.position}º puesto</p>
+        <p class="center"><b>${Math.round(r.score)} puntos</b></p>
         <div class="result-break">
           <span>Stats: ${Math.round(r.statScore)}</span><span>Minijuego: ${Math.round(r.minigameScore)}</span>
         </div>
         <p class="center reward">+${r.coins} 🪙 ${r.stars ? `+${r.stars} ⭐` : ''}</p>
-        <div class="ranking">${ranking}</div>`,
+        <h4>🌐 Ranking global</h4>
+        <div class="ranking"><p class="empty-note">Cargando ranking…</p></div>`,
       buttons: [{ label: '¡Genial!', act: 'close', primary: true }],
     });
+    void this.loadRanking(modal.body.querySelector('.ranking') as HTMLElement, comp.id, r.score, r.rating, pet);
   }
+
+  /** Sube el puntaje al servidor y muestra el ranking real de jugadores. */
+  private async loadRanking(box: HTMLElement, compId: string, score: number, rating: number, pet?: Pet): Promise<void> {
+    const online = OnlineService.instance;
+    try {
+      if (pet) await online.submitScore(compId, score, rating, pet);
+      const { lista, posicion, total } = await online.ranking(compId);
+      if (!lista.length) {
+        box.innerHTML = '<p class="empty-note">Todavía no hay puntajes de otros jugadores.</p>';
+        return;
+      }
+      box.innerHTML =
+        lista
+          .slice(0, 10)
+          .map((row, i) => {
+            const sp = DataRegistry.instance.getSpecies(row.especie);
+            const svg = renderPetSVG({ speciesId: sp.id, genes: { primaryColor: sp.primaryPalette[0], secondaryColor: sp.secondaryPalette[0], pattern: 'plain', size: 1 }, stage: GrowthStage.Adult, mood: 'happy' });
+            return `<div class="rank-row ${row.yo ? 'me' : ''}"><span class="rank-pos">${i + 1}º</span><span class="rank-sprite">${svg}</span><span class="rank-name">${esc(row.mascota)}<small> · ${esc(row.apodo)}</small></span><span class="rank-score">${Math.round(row.puntaje)}</span></div>`;
+          })
+          .join('') + (posicion ? `<p class="hint center">Tu mejor puesto: ${posicion}º de ${total}</p>` : '');
+    } catch (err) {
+      box.innerHTML = `<p class="empty-note">${esc(OnlineService.describe(err))}</p>`;
+    }
+  }
+
 }

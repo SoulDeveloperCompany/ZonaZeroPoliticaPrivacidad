@@ -2,50 +2,41 @@
  * BreedingSystem (Singleton): apareamiento, herencia, rancho y adopción.
  *
  * - Solo adultos (no senior), misma especie y sexo opuesto.
- * - La pareja puede ser otra mascota tuya o una de otro jugador (simulada, con tarifa).
+ * - La pareja puede ser otra mascota tuya o la de otro jugador real
+ *   (publicada en el servidor; se paga su tarifa al dueño).
  * - La cría hereda color, patrón, tamaño y stats base de ambos padres con
  *   variación aleatoria y una pequeña probabilidad de mutación.
  * - Si ya tienes 3 mascotas en casa, la cría va al rancho.
- * - Las crías se pueden publicar en adopción pública.
+ * - Las crías se pueden publicar en adopción para otros jugadores.
  */
 import { Clock } from '../../core/Clock';
 import { EventBus } from '../../core/EventBus';
 import { GameConfig } from '../../core/GameConfig';
 import { GameState } from '../../core/GameState';
-import { chance, clamp, pick, randInt, rng, seededRng } from '../../core/random';
+import { chance, clamp, pick, randInt, rng } from '../../core/random';
 import { DataRegistry } from '../../data/DataRegistry';
 import { Feature } from '../../data/stages';
 import { EconomySystem } from '../economy/EconomySystem';
 import { GrowthSystem } from '../growth/GrowthSystem';
+import { OnlineService, type RemoteAdoption, type RemotePartner } from '../online/OnlineService';
 import { Pet } from '../pet/Pet';
 import { PetManager } from '../pet/PetManager';
 import { GrowthStage, PetLocation, Sex, type PetGenes } from '../pet/PetTypes';
 import { AlbumSystem } from '../save/AlbumSystem';
-import { LocalAdoptionService, type AdoptionService } from './AdoptionService';
 
 export type BreedCheck =
   | { ok: true }
   | { ok: false; reason: 'stage' | 'happiness' | 'health' | 'cooldown' | 'unavailable'; daysLeft?: number };
 
-/** Pareja candidata de otro jugador (simulada). */
-export interface NpcPartner {
-  id: string;
-  name: string;
-  ownerName: string;
-  speciesId: string;
-  sex: Sex;
-  genes: PetGenes;
-  fee: number;
-}
+/** Pareja: otra mascota tuya o la de otro jugador publicada en el servidor. */
+export type Partner = { kind: 'own'; pet: Pet } | { kind: 'online'; listing: RemotePartner };
 
-export type Partner = { kind: 'own'; pet: Pet } | { kind: 'npc'; npc: NpcPartner };
+export type BreedResult = { ok: true; baby: Pet; location: PetLocation } | { ok: false; reason: string };
 
-export type BreedResult =
-  | { ok: true; baby: Pet; location: PetLocation }
-  | { ok: false; reason: string };
+export type SimpleResult = { ok: true } | { ok: false; reason: string };
 
-const NPC_NAMES = ['Duque', 'Princesa', 'Canelo', 'Estrella', 'Bruno', 'Perla', 'Thor', 'Miel'];
-const OWNERS = ['Ana', 'Pablo', 'Lucía', 'Hugo', 'Martina', 'Álvaro'];
+/** Tarifa por defecto al ofrecer una mascota como pareja. */
+export const PARTNER_FEE = 100;
 
 export class BreedingSystem {
   private static _instance: BreedingSystem | null = null;
@@ -55,8 +46,9 @@ export class BreedingSystem {
     return this._instance;
   }
 
-  /** Servicio de adopción intercambiable (local hoy, online mañana). */
-  adoption: AdoptionService = new LocalAdoptionService();
+  private get online() {
+    return OnlineService.instance;
+  }
 
   // ---------- Apareamiento ----------
 
@@ -80,42 +72,28 @@ export class BreedingSystem {
     return a.id !== b.id && a.speciesId === b.speciesId && a.sex !== b.sex;
   }
 
-  /** Busca parejas: tus mascotas compatibles + candidatas de otros jugadores. */
-  findPartners(pet: Pet): Partner[] {
-    const own: Partner[] = PetManager.instance
+  /** Tus mascotas compatibles (sin conexión). */
+  ownPartners(pet: Pet): Partner[] {
+    return PetManager.instance
       .all()
       .filter((other) => this.compatible(pet.data, other.data) && this.canBreed(other).ok)
       .map((other) => ({ kind: 'own', pet: other }));
-    return [...own, ...this.npcPartners(pet).map((npc): Partner => ({ kind: 'npc', npc }))];
   }
 
   /**
-   * Candidatas simuladas de otros jugadores. Son estables durante el mismo
-   * día de juego (misma semilla) para que no cambien cada vez que abres la pantalla.
+   * Busca parejas: tus mascotas compatibles + las que otros jugadores ofrecen
+   * en el servidor. `error` indica si no se pudo consultar el servidor.
    */
-  npcPartners(pet: Pet): NpcPartner[] {
-    const species = pet.species;
-    const day = Math.floor(Clock.now() / (6 * 60 * 60 * 1000));
-    const seed = [...pet.id].reduce((acc, c) => acc + c.charCodeAt(0), day);
-    const r = seededRng(seed);
-    const at = <T>(list: readonly T[]) => list[Math.floor(r() * list.length)];
-    const opposite = pet.data.sex === Sex.Male ? Sex.Female : Sex.Male;
-    return Array.from({ length: 3 }, (_, i) => ({
-      id: `npc_${seed}_${i}`,
-      name: at(NPC_NAMES),
-      ownerName: at(OWNERS),
-      speciesId: species.id,
-      sex: opposite,
-      genes: {
-        primaryColor: at(species.primaryPalette),
-        secondaryColor: at(species.secondaryPalette),
-        pattern: at(species.patterns),
-        size: Math.round((0.9 + r() * 0.2) * 100) / 100,
-        baseAgility: clamp(Math.round(species.baseAgility + (r() - 0.3) * 20)),
-        baseBeauty: clamp(Math.round(species.baseBeauty + (r() - 0.3) * 20)),
-      },
-      fee: GameConfig.BREEDING.npcPartnerFee + i * 40,
-    }));
+  async findPartners(pet: Pet): Promise<{ partners: Partner[]; error?: unknown }> {
+    const own = this.ownPartners(pet);
+    if (!this.online.isConfigured()) return { partners: own, error: new Error('sin-servidor') };
+    try {
+      const opposite = pet.data.sex === Sex.Male ? Sex.Female : Sex.Male;
+      const remote = await this.online.listPartners(pet.data.speciesId, opposite);
+      return { partners: [...own, ...remote.map((listing): Partner => ({ kind: 'online', listing }))] };
+    } catch (error) {
+      return { partners: own, error };
+    }
   }
 
   /** Genes de la cría: mezcla aleatoria de ambos padres + mutación ocasional. */
@@ -134,7 +112,7 @@ export class BreedingSystem {
   }
 
   /** Aparea a una mascota con una pareja. La cría nace como bebé. */
-  breed(petId: string, partner: Partner, babyName = ''): BreedResult {
+  async breed(petId: string, partner: Partner, babyName = ''): Promise<BreedResult> {
     const pet = PetManager.instance.get(petId);
     if (!pet) return { ok: false, reason: 'Mascota no encontrada' };
     const check = this.canBreed(pet);
@@ -156,12 +134,19 @@ export class BreedingSystem {
       partnerGeneration = other.data.generation;
       other.data.lastBredAtDay = other.data.ageDays;
     } else {
-      const npc = partner.npc;
-      if (!this.compatible(pet.data, npc)) return { ok: false, reason: 'No son compatibles' };
-      if (!EconomySystem.instance.pay({ coins: npc.fee })) return { ok: false, reason: 'No tienes monedas suficientes' };
-      partnerGenes = npc.genes;
-      partnerName = npc.name;
-      partnerId = npc.id;
+      const l = partner.listing;
+      if (l.especie !== pet.data.speciesId || l.sexo === pet.data.sex) return { ok: false, reason: 'No son compatibles' };
+      // Se cobra antes y se devuelve si el servidor falla
+      if (!EconomySystem.instance.pay({ coins: l.tarifa })) return { ok: false, reason: 'No tienes monedas suficientes' };
+      try {
+        const r = await this.online.usePartner(l.anuncio);
+        partnerGenes = { ...Pet.randomGenes(DataRegistry.instance.getSpecies(l.especie)), ...l.genes, ...r.genes };
+        partnerName = r.nombre || l.nombre;
+      } catch (err) {
+        EconomySystem.instance.addCoins(l.tarifa);
+        return { ok: false, reason: OnlineService.describe(err) };
+      }
+      partnerId = l.anuncio;
     }
 
     pet.data.lastBredAtDay = pet.data.ageDays;
@@ -200,71 +185,119 @@ export class BreedingSystem {
     }
   }
 
+  // ---------- Ofrecer como pareja a otros jugadores ----------
+
+  async offerAsPartner(petId: string, fee = PARTNER_FEE): Promise<SimpleResult> {
+    const pet = PetManager.instance.get(petId);
+    if (!pet) return { ok: false, reason: 'Mascota no encontrada' };
+    if (!GrowthSystem.instance.isUnlocked(pet, Feature.Breed)) return { ok: false, reason: 'Solo los adultos pueden ser pareja' };
+    try {
+      pet.data.partnerListingId = await this.online.publishPartner(pet, fee);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, reason: OnlineService.describe(err) };
+    }
+  }
+
+  async withdrawPartner(petId: string): Promise<SimpleResult> {
+    const pet = PetManager.instance.get(petId);
+    if (!pet?.data.partnerListingId) return { ok: true };
+    try {
+      await this.online.withdrawPartner(pet.data.partnerListingId);
+      pet.data.partnerListingId = null;
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, reason: OnlineService.describe(err) };
+    }
+  }
+
   // ---------- Adopción pública (publicar tus crías) ----------
 
-  /** Publica una mascota en adopción. No se puede publicar la única que tienes. */
-  listForAdoption(petId: string): boolean {
+  /** Precio que pagará quien adopte (mejor cuidada = más monedas). */
+  adoptionReward(pet: Pet): number {
+    const stageBonus = pet.stage === GrowthStage.Baby ? 1.2 : 1;
+    return Math.round((60 + pet.wellbeing * 0.8 + pet.data.genes.baseBeauty * 0.4) * stageBonus);
+  }
+
+  /** Publica una mascota en adopción en el servidor. No se puede publicar la única que tienes. */
+  async listForAdoption(petId: string): Promise<SimpleResult> {
     const pet = PetManager.instance.get(petId);
-    if (!pet || pet.isEscaped || pet.data.location === PetLocation.Adoption) return false;
-    const others = PetManager.instance
-      .all()
-      .filter((p) => p.id !== petId && p.data.location !== PetLocation.Adoption);
-    if (others.length === 0) return false;
+    if (!pet || pet.isEscaped || pet.data.location === PetLocation.Adoption) return { ok: false, reason: 'No disponible' };
+    const others = PetManager.instance.all().filter((p) => p.id !== petId && p.data.location !== PetLocation.Adoption);
+    if (others.length === 0) return { ok: false, reason: 'No puedes dar en adopción a tu única mascota' };
+    try {
+      pet.data.adoptionOfferId = await this.online.publishAdoption(pet, this.adoptionReward(pet));
+    } catch (err) {
+      return { ok: false, reason: OnlineService.describe(err) };
+    }
     const wasSelected = PetManager.instance.selected?.id === petId;
     pet.data.location = PetLocation.Adoption;
     pet.data.listedAt = Clock.now();
     pet.data.sleeping = false;
     if (wasSelected) PetManager.instance.select(PetManager.instance.homePets()[0]?.id ?? null);
     EventBus.instance.emit('pet:locationChanged', { petId });
-    return true;
+    return { ok: true };
   }
 
   /** Retira la publicación: vuelve a casa si hay hueco, si no al rancho. */
-  cancelListing(petId: string): void {
+  async cancelListing(petId: string): Promise<SimpleResult> {
     const pet = PetManager.instance.get(petId);
-    if (!pet || pet.data.location !== PetLocation.Adoption) return;
+    if (!pet || pet.data.location !== PetLocation.Adoption) return { ok: true };
+    if (pet.data.adoptionOfferId) {
+      try {
+        await this.online.withdrawAdoption(pet.data.adoptionOfferId);
+      } catch (err) {
+        // Si alguien ya la adoptó, la siguiente sincronización la entregará
+        return { ok: false, reason: OnlineService.describe(err) };
+      }
+    }
     pet.data.location = PetManager.instance.hasFreeSlot() ? PetLocation.Active : PetLocation.Ranch;
     pet.data.listedAt = null;
+    pet.data.adoptionOfferId = null;
     EventBus.instance.emit('pet:locationChanged', { petId });
+    return { ok: true };
   }
 
-  /** Recompensa que da la familia adoptante (mejor cuidada = más monedas). */
-  adoptionReward(pet: Pet): number {
-    const stageBonus = pet.stage === GrowthStage.Baby ? 1.2 : 1;
-    return Math.round((60 + pet.wellbeing * 0.8 + pet.data.genes.baseBeauty * 0.4) * stageBonus);
-  }
-
-  /** Revisa las publicaciones y completa las adopciones que ya tocan. */
-  update(now = Clock.now()): void {
-    for (const pet of PetManager.instance.byLocation(PetLocation.Adoption)) {
-      if (pet.data.listedAt === null || now - pet.data.listedAt < GameConfig.ADOPTION_WAIT_MS) continue;
-      const coins = this.adoptionReward(pet);
-      EconomySystem.instance.addCoins(coins);
-      AlbumSystem.instance.add(pet, 'adoption', '¡Nueva familia!', `Una familia adoptó a ${pet.name} y te regaló ${coins} monedas.`);
+  /**
+   * Aplica lo que dijo el servidor al sincronizar: estas crías publicadas por
+   * ti ya fueron adoptadas por otros jugadores (las monedas llegan aparte).
+   */
+  applyAdopted(list: { oferta: string; mascotaId: string; precio: number }[]): number {
+    let n = 0;
+    for (const item of list) {
+      const pet =
+        PetManager.instance.all().find((p) => p.data.adoptionOfferId === item.oferta) ?? PetManager.instance.get(item.mascotaId);
+      if (!pet) continue;
+      AlbumSystem.instance.add(pet, 'adoption', '¡Nueva familia!', `Otro jugador adoptó a ${pet.name} y te pagó ${item.precio} monedas.`);
       const name = pet.name;
       PetManager.instance.remove(pet.id);
-      EventBus.instance.emit('adoption:completed', { petName: name, coins });
+      EventBus.instance.emit('adoption:completed', { petName: name, coins: Number(item.precio) || 0 });
+      n++;
     }
+    return n;
   }
 
-  // ---------- Adoptar crías de otros ----------
+  // ---------- Adoptar crías de otros jugadores ----------
 
-  /** Adopta una cría publicada por otro jugador. */
-  adopt(offerId: string, name?: string): BreedResult {
-    const offer = this.adoption.getOffers().find((o) => o.id === offerId);
-    if (!offer) return { ok: false, reason: 'Ya no está disponible' };
-    if (!EconomySystem.instance.pay(offer.price)) return { ok: false, reason: 'No te alcanza' };
-    this.adoption.takeOffer(offerId);
+  async adopt(offer: RemoteAdoption, name?: string): Promise<BreedResult> {
+    if (!EconomySystem.instance.pay({ coins: offer.precio })) return { ok: false, reason: 'No te alcanza' };
+    let cria;
+    try {
+      cria = await this.online.adopt(offer.oferta);
+    } catch (err) {
+      EconomySystem.instance.addCoins(offer.precio);
+      return { ok: false, reason: OnlineService.describe(err) };
+    }
+    const species = DataRegistry.instance.getSpecies(cria.especie);
     const baby = Pet.create({
-      name: name || offer.name,
-      speciesId: offer.speciesId,
+      name: name || cria.nombre,
+      speciesId: species.id,
       now: Clock.now(),
-      sex: offer.sex,
-      genes: offer.genes,
+      sex: cria.sexo,
+      genes: { ...Pet.randomGenes(species), ...cria.genes },
     });
     const location = PetManager.instance.add(baby, 'adopted');
-    AlbumSystem.instance.add(baby, 'birth', '¡Nuevo miembro!', `Adoptaste a ${baby.name} de ${offer.ownerName}.`);
+    AlbumSystem.instance.add(baby, 'birth', '¡Nuevo miembro!', `Adoptaste a ${baby.name} de ${offer.duenoApodo}.`);
     return { ok: true, baby, location };
   }
 }
-

@@ -19,7 +19,7 @@ export const Feature = {
   Breed: 'breed',
 } as const;
 
-const BASIC = [Feature.Feed, Feature.Pet, Feature.Bathe];
+const BASIC = [Feature.Feed, Feature.Pet, Feature.Bathe, Feature.Play];
 
 export const STAGES: StageDefinition[] = [
   {

@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Clock } from '../src/core/Clock';
+import { GameManager } from '../src/core/GameManager';
+import { GamesSystem } from '../src/systems/games/GamesSystem';
+import { MissionSystem } from '../src/systems/games/MissionSystem';
+import { OnlineService } from '../src/systems/online/OnlineService';
 import { EventBus } from '../src/core/EventBus';
 import { GameConfig } from '../src/core/GameConfig';
 import { GameState } from '../src/core/GameState';
@@ -273,41 +277,131 @@ describe('BreedingSystem', () => {
     return pet;
   }
 
-  it('aparea adultos de la misma especie y sexo opuesto; la cría hereda rasgos', () => {
+  it('aparea adultos de la misma especie y sexo opuesto; la cría hereda rasgos', async () => {
     const mom = adult('Mamá', Sex.Female);
     const dad = adult('Papá', Sex.Male);
-    const r = BreedingSystem.instance.breed(mom.id, { kind: 'own', pet: dad }, 'Gatito');
+    const r = await BreedingSystem.instance.breed(mom.id, { kind: 'own', pet: dad }, 'Gatito');
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.baby.stage).toBe(GrowthStage.Baby);
     expect(r.baby.data.generation).toBe(2);
     const colors = [mom.data.genes.primaryColor, dad.data.genes.primaryColor, ...r.baby.species.primaryPalette];
     expect(colors).toContain(r.baby.data.genes.primaryColor);
-    // Cooldown de crianza
     expect(BreedingSystem.instance.canBreed(mom).ok).toBe(false);
   });
 
-  it('no aparea mismo sexo ni bebés', () => {
+  it('no aparea mismo sexo ni bebés', async () => {
     const a = adult('A', Sex.Female);
     const b = adult('B', Sex.Female);
-    expect(BreedingSystem.instance.breed(a.id, { kind: 'own', pet: b }).ok).toBe(false);
+    expect((await BreedingSystem.instance.breed(a.id, { kind: 'own', pet: b })).ok).toBe(false);
     const baby = Pet.create({ name: 'Bebe', speciesId: Species.Cat, now, sex: Sex.Male });
     PetManager.instance.add(baby, 'adopted');
     expect(BreedingSystem.instance.canBreed(baby).ok).toBe(false);
   });
 
-  it('adopción pública: la cría publicada se adopta y da monedas', () => {
+  it('sin servidor no se puede publicar en adopción ni hay adopciones inventadas', async () => {
     const mom = adult('Mamá', Sex.Female);
-    const dad = adult('Papá', Sex.Male);
-    const r = BreedingSystem.instance.breed(mom.id, { kind: 'own', pet: dad });
-    if (!r.ok) throw new Error(r.reason);
-    expect(BreedingSystem.instance.listForAdoption(r.baby.id)).toBe(true);
+    adult('Papá', Sex.Male);
+    const r = await BreedingSystem.instance.listForAdoption(mom.id);
+    expect(r.ok).toBe(false);
+    expect(mom.data.location).toBe(PetLocation.Active);
+  });
+});
+
+describe('Servidor (Google Sheets)', () => {
+  const calls: Record<string, unknown>[] = [];
+  beforeEach(() => {
+    calls.length = 0;
+    OnlineService.instance.setUrl('https://script.google.com/macros/s/TEST/exec');
+  });
+  afterEach(() => {
+    OnlineService.instance.setUrl('');
+  });
+
+  it('publica una cría, otro jugador la adopta y al sincronizar cobras', async () => {
+    const mom = Pet.create({ name: 'Mamá', speciesId: Species.Dog, now });
+    const kid = Pet.create({ name: 'Peque', speciesId: Species.Dog, now });
+    PetManager.instance.add(mom, 'adopted');
+    PetManager.instance.add(kid, 'born');
+    OnlineService.instance.transport = async (_m, _u, payload) => {
+      calls.push(payload);
+      if (payload.accion === 'publicarAdopcion') return { ok: true, oferta: 'of1' };
+      if (payload.accion === 'sincronizar') return { ok: true, monedas: 90, adoptadas: [{ oferta: 'of1', mascotaId: kid.id, precio: 90 }] };
+      return { ok: true };
+    };
+    expect((await BreedingSystem.instance.listForAdoption(kid.id)).ok).toBe(true);
+    expect(kid.data.location).toBe(PetLocation.Adoption);
     const coins = EconomySystem.instance.coins;
-    now += GameConfig.ADOPTION_WAIT_MS + 1000;
-    Clock.setNow(now);
-    BreedingSystem.instance.update(now);
-    expect(PetManager.instance.get(r.baby.id)).toBeUndefined();
-    expect(EconomySystem.instance.coins).toBeGreaterThan(coins);
+    expect(await GameManager.instance.syncOnline()).toBe(true);
+    expect(PetManager.instance.get(kid.id)).toBeUndefined();
+    expect(EconomySystem.instance.coins).toBe(coins + 90);
+    expect(calls.every((c) => typeof c.id === 'string' && /^[a-f0-9]{24}$/.test(c.id as string))).toBe(true);
+  });
+
+  it('aparea con la mascota de otro jugador pagando su tarifa', async () => {
+    const mom = Pet.create({ name: 'Mamá', speciesId: Species.Cat, now, sex: Sex.Female });
+    PetManager.instance.add(mom, 'adopted');
+    GrowthSystem.instance.addDays(mom, 15);
+    pamper(mom);
+    OnlineService.instance.transport = async (_m, _u, payload) => {
+      if (payload.accion === 'parejas') return { ok: true, lista: [{ anuncio: 'a1', duenoApodo: 'Patita Feliz 123', nombre: 'Duque', especie: 'cat', sexo: 'male', genes: { primaryColor: '#123456' }, tarifa: 100 }] };
+      if (payload.accion === 'usarPareja') return { ok: true, nombre: 'Duque', genes: { primaryColor: '#123456' } };
+      return { ok: true };
+    };
+    const { partners } = await BreedingSystem.instance.findPartners(mom);
+    const online = partners.find((p) => p.kind === 'online')!;
+    const coins = EconomySystem.instance.coins;
+    const r = await BreedingSystem.instance.breed(mom.id, online, 'Michi');
+    expect(r.ok).toBe(true);
+    expect(EconomySystem.instance.coins).toBe(coins - 100);
+  });
+
+  it('si el servidor falla al usar la pareja, devuelve las monedas', async () => {
+    const mom = Pet.create({ name: 'Mamá', speciesId: Species.Cat, now, sex: Sex.Female });
+    PetManager.instance.add(mom, 'adopted');
+    GrowthSystem.instance.addDays(mom, 15);
+    pamper(mom);
+    OnlineService.instance.transport = async () => {
+      throw new Error('red');
+    };
+    const coins = EconomySystem.instance.coins;
+    const listing = { anuncio: 'a1', duenoApodo: 'X', nombre: 'Duque', especie: 'cat', sexo: Sex.Male, genes: {}, tarifa: 100 };
+    const r = await BreedingSystem.instance.breed(mom.id, { kind: 'online', listing });
+    expect(r.ok).toBe(false);
+    expect(EconomySystem.instance.coins).toBe(coins);
+  });
+});
+
+describe('Minijuegos y misiones', () => {
+  it('jugar da monedas con tope diario y guarda el récord', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    pamper(pet);
+    const r1 = GamesSystem.instance.finish(pet.id, 'bubbles', 30);
+    expect(r1.coins).toBe(15);
+    expect(r1.record).toBe(true);
+    pet.stats.energy = 100;
+    for (let i = 0; i < 5; i++) GamesSystem.instance.finish(pet.id, 'bubbles', 30);
+    expect(GamesSystem.instance.coinsToday('bubbles')).toBe(60);
+  });
+
+  it('los juegos se desbloquean por etapa', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    pamper(pet);
+    expect(GamesSystem.instance.canPlay(pet, 'bubbles').ok).toBe(true);
+    expect(GamesSystem.instance.canPlay(pet, 'runner').ok).toBe(false);
+  });
+
+  it('las misiones avanzan con las acciones y se cobran', () => {
+    MissionSystem.instance.start();
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    pamper(pet);
+    const missions = MissionSystem.instance.today();
+    expect(missions).toHaveLength(3);
+    // Completar a mano la primera para comprobar el cobro
+    missions[0].state.progress = missions[0].def.goal;
+    const coins = EconomySystem.instance.coins;
+    expect(MissionSystem.instance.claim(missions[0].def.id)).toBe(missions[0].def.reward);
+    expect(EconomySystem.instance.coins).toBe(coins + missions[0].def.reward);
   });
 });
 

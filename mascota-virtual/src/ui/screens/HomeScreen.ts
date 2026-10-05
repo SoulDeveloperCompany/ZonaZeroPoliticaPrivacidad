@@ -31,7 +31,9 @@ import {
   type Screen,
 } from '../common';
 import { el, esc, onAction } from '../dom';
+import { openGames, openMissions } from '../GamesHub';
 import { openBath } from '../minigames/BathScene';
+import { MissionSystem } from '../../systems/games/MissionSystem';
 import { chooseName } from '../NameChooser';
 import { showModal, showToast } from '../Overlay';
 
@@ -72,6 +74,7 @@ export class HomeScreen implements Screen {
   private lastNight: boolean | null = null;
   private statsOpen = false;
   private offs: (() => void)[] = [];
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
   mount(root: HTMLElement): void {
     this.root = root;
@@ -92,10 +95,52 @@ export class HomeScreen implements Screen {
       bus.on('pet:sleepChanged', () => this.tick()),
     ];
     this.render();
+    this.scheduleIdle();
   }
 
   unmount(): void {
     this.offs.forEach((off) => off());
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+  }
+
+  // ---------- Vida en reposo ----------
+
+  /** Cada pocos segundos la mascota hace algo por su cuenta para no verse estática. */
+  private scheduleIdle(): void {
+    this.idleTimer = setTimeout(() => {
+      this.idleBehavior();
+      this.scheduleIdle();
+    }, 3500 + Math.random() * 3500);
+  }
+
+  private idleBehavior(): void {
+    const pet = this.pet;
+    const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
+    const wrap = this.root.querySelector<HTMLElement>('.pet-stage-wrap');
+    const trayOpen = this.root.querySelector<HTMLElement>('.food-tray')?.hidden === false;
+    if (!pet || !pet.isActive || !sprite || !wrap || trayOpen) return;
+    if ([...sprite.classList].some((c) => c.startsWith('anim-'))) return;
+    if (pet.data.sleeping) {
+      // Dormida: vuelve al centro y solo respira
+      wrap.style.setProperty('--walk-x', '0px');
+      return;
+    }
+    const roll = Math.random();
+    if (roll < 0.4) {
+      // Pasea por la alfombra mirando hacia donde va
+      const max = wrap.clientWidth * 0.32;
+      const current = parseFloat(wrap.style.getPropertyValue('--walk-x')) || 0;
+      let target = (Math.random() * 2 - 1) * max;
+      if (Math.abs(target - current) < max * 0.4) target = -current || max * 0.6;
+      sprite.classList.toggle('face-left', target < current);
+      sprite.classList.add('walking');
+      wrap.style.setProperty('--walk-x', `${Math.round(target)}px`);
+      setTimeout(() => sprite.classList.remove('walking'), 1700);
+    } else {
+      const cls = pet.isDrowsy ? 'idle-yawn' : (['idle-hop', 'idle-tilt', 'idle-look', 'idle-wiggle'] as const)[Math.floor(Math.random() * 4)];
+      sprite.classList.add(cls);
+      setTimeout(() => sprite.classList.remove(cls), 1600);
+    }
   }
 
   private get pet(): Pet | undefined {
@@ -142,6 +187,7 @@ export class HomeScreen implements Screen {
           <div class="growth-mini"><div class="growth-label"></div><div class="bar bar-growth"><div class="bar-fill"></div></div></div>
         </div>
         <button class="stats-btn" data-act="stats" aria-label="Ver estado">📊<span class="stats-alert" hidden></span></button>
+        <button class="stats-btn missions-btn" data-act="missions" aria-label="Misiones">📋<span class="missions-badge" hidden></span></button>
         <div class="need-bubble" hidden></div>
         <div class="pet-stage-wrap"><div class="pet-sprite" data-act="pet-touch"></div></div>
         <div class="fx-layer"></div>
@@ -240,6 +286,14 @@ export class HomeScreen implements Screen {
           : '';
     }
 
+    // Misiones listas para cobrar
+    const badge = this.root.querySelector<HTMLElement>('.missions-badge');
+    if (badge) {
+      const n = MissionSystem.instance.claimableCount();
+      badge.hidden = n === 0;
+      badge.textContent = String(n);
+    }
+
     // Burbuja de necesidad
     const bubble = this.root.querySelector<HTMLElement>('.need-bubble');
     if (bubble) {
@@ -254,16 +308,15 @@ export class HomeScreen implements Screen {
     const fill = this.root.querySelector<HTMLElement>('.bar-growth .bar-fill');
     if (label && fill) {
       const boost = GrowthSystem.instance.growthMultiplier(pet, Clock.now()) > 1 ? ' ⏩x2' : '';
-      label.innerHTML = g.next
-        ? `${g.current.name} → <b>${g.next.name}</b> · ${formatDuration(g.daysLeft * 3600_000)}${boost}`
-        : `${g.current.name} · día ${Math.floor(pet.data.ageDays)}`;
+      label.innerHTML = `<b>${g.current.name}</b>${boost}`;
       fill.style.width = `${Math.round(g.progress * 100)}%`;
     }
 
     // Botones flotantes: bloqueado / cooldown
     const now = Clock.now();
     this.root.querySelectorAll<HTMLElement>('.dock-btn[data-act="action"]').forEach((btn) => {
-      const blocked = InteractionSystem.instance.check(pet, btn.dataset.id!, now);
+      const id = btn.dataset.id!;
+      const blocked = id === 'play' && !pet.data.sleeping ? null : InteractionSystem.instance.check(pet, id, now);
       const badge = btn.querySelector('.dock-badge')!;
       const locked = blocked?.ok === false && blocked.reason === 'locked';
       btn.classList.toggle('blocked', !!blocked);
@@ -304,6 +357,9 @@ export class HomeScreen implements Screen {
         box.innerHTML = `<b>${STAT_ICONS[key]} ${STAT_LABELS[key]}:</b> ${STAT_HELP[key]}`;
         return;
       }
+      case 'missions':
+        openMissions(() => this.tick());
+        return;
       case 'close-tray':
         this.toggleTray(false);
         return;
@@ -350,13 +406,18 @@ export class HomeScreen implements Screen {
   }
 
   private doAction(pet: Pet, actionId: string): void {
-    const blocked = InteractionSystem.instance.check(pet, actionId);
+    // "Jugar" abre los minijuegos: allí se valida energía y etapa de cada juego
+    const blocked = actionId === 'play' ? (pet.data.sleeping ? InteractionSystem.instance.check(pet, actionId) : null) : InteractionSystem.instance.check(pet, actionId);
     if (blocked && !blocked.ok) {
       showToast(describeFailure(blocked), 'bad');
       return;
     }
     if (actionId === 'feed') {
       this.toggleTray(true);
+      return;
+    }
+    if (actionId === 'play') {
+      openGames(pet);
       return;
     }
     if (actionId === 'bathe') {

@@ -6,12 +6,14 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Clock, formatDuration } from '../core/Clock';
 import { EventBus } from '../core/EventBus';
+import { GameState } from '../core/GameState';
 import { GameManager } from '../core/GameManager';
 import { DataRegistry } from '../data/DataRegistry';
 import { EconomySystem } from '../systems/economy/EconomySystem';
 import { PetManager } from '../systems/pet/PetManager';
 import type { OfflineReport } from '../systems/save/SaveSystem';
 import { SaveSystem } from '../systems/save/SaveSystem';
+import { OnlineService } from '../systems/online/OnlineService';
 import { type Screen } from './common';
 import { el, esc, onAction } from './dom';
 import { closeTopModal, confirmModal, hasModal, showModal, showToast } from './Overlay';
@@ -66,6 +68,7 @@ export class App {
 
     this.updateWallet();
     setInterval(() => this.current?.tick?.(), 1000);
+    void GameManager.instance.syncOnline();
     this.setupBackButton();
 
     if (PetManager.instance.all().length === 0) {
@@ -134,7 +137,6 @@ export class App {
     r.stageUps.forEach((s) => lines.push(`🌱 ${esc(s.name)} creció: ahora es ${DataRegistry.instance.getStage(s.stage).name}`));
     r.escaped.forEach((n) => lines.push(`💨 ¡${esc(n)} se escapó! Ve a Casa a seguir su rastro.`));
     r.lostForever.forEach((n) => lines.push(`👋 ${esc(n)} se fue con otra familia.`));
-    r.adopted.forEach((a) => lines.push(`🤝 ${esc(a.name)} encontró un nuevo hogar (+${a.coins} 🪙)`));
     r.changes.forEach((c) => lines.push(`${esc(c.name)}: hambre ${c.hunger >= 0 ? '+' : ''}${c.hunger}, felicidad ${c.happiness >= 0 ? '+' : ''}${c.happiness}`));
     showModal({
       title: '🕰️ Mientras no estabas...',
@@ -146,6 +148,13 @@ export class App {
     showModal({
       title: '⚙️ Ajustes',
       body: `
+        <div class="server-box">
+          <b>🌐 Servidor (multijugador)</b>
+          <p class="hint">Tu apodo: <b class="apodo">${esc(OnlineService.instance.player.apodo)}</b> <button class="btn btn-sm" data-act="apodo">🎲 Cambiar</button></p>
+          <label class="field"><span>URL del Apps Script (/exec)</span>
+            <input id="server-url" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(OnlineService.instance.url)}"/></label>
+          <div class="field-row"><button class="btn btn-primary" data-act="connect">Conectar</button><span class="server-status">${serverStatus()}</span></div>
+        </div>
         <p class="hint">Tu partida se guarda sola cada 10 segundos y al salir.</p>
         <div class="settings-list">
           <button class="btn" data-act="save">💾 Guardar ahora</button>
@@ -163,10 +172,35 @@ export class App {
         <p class="hint center">Patitas v0.1 · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
+        if (act === 'connect' || act === 'apodo') {
+          void this.serverAction(act, modal.body);
+          return true;
+        }
         void this.settingsAction(act, modal.close);
         return act !== 'close' && !['reset', 'import', 'export'].includes(act);
       },
     });
+  }
+
+  /** Conectar con el servidor o cambiar el apodo. */
+  private async serverAction(act: string, body: HTMLElement): Promise<void> {
+    const online = OnlineService.instance;
+    const status = body.querySelector('.server-status') as HTMLElement;
+    if (act === 'apodo') {
+      body.querySelector('.apodo')!.textContent = online.changeApodo();
+      void GameManager.instance.syncOnline();
+      return;
+    }
+    online.setUrl((body.querySelector('#server-url') as HTMLInputElement).value);
+    if (!online.isConfigured()) {
+      status.textContent = '⚠️ La URL debe empezar por https://script.google.com/';
+      return;
+    }
+    status.textContent = 'Conectando…';
+    const ok = await GameManager.instance.syncOnline();
+    status.textContent = serverStatus();
+    showToast(ok ? '🌐 Conectado al servidor' : 'No se pudo conectar. Revisa la URL y que la implementación sea "Cualquier usuario"', ok ? 'good' : 'bad');
+    void GameManager.instance.save();
   }
 
   private async settingsAction(act: string, close: () => void): Promise<void> {
@@ -253,4 +287,13 @@ export class App {
     void CapApp.addListener('pause', () => void GameManager.instance.save());
     void CapApp.addListener('resume', () => GameManager.instance.tick());
   }
+}
+
+/** Texto del estado de conexión. */
+function serverStatus(): string {
+  const online = OnlineService.instance;
+  if (!online.isConfigured()) return '⚪ Sin configurar';
+  if (online.status === 'error') return '🔴 Sin conexión';
+  const last = GameState.instance.data.online.lastSync;
+  return last ? `🟢 Conectado (${new Date(last).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })})` : '🟡 Sin probar';
 }

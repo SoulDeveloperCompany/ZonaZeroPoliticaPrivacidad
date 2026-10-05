@@ -6,6 +6,11 @@
  * - Guarda automáticamente y al pasar la app a segundo plano.
  */
 import { BreedingSystem } from '../systems/breeding/BreedingSystem';
+import { EconomySystem } from '../systems/economy/EconomySystem';
+import { OnlineService } from '../systems/online/OnlineService';
+import { EventBus, toast } from './EventBus';
+import { OnlineConfig } from './OnlineConfig';
+import { MissionSystem } from '../systems/games/MissionSystem';
 import { PetManager } from '../systems/pet/PetManager';
 import { SaveSystem, type OfflineReport } from '../systems/save/SaveSystem';
 import { Clock } from './Clock';
@@ -24,11 +29,14 @@ export class GameManager {
 
   private lastTick = 0;
   private lastSave = 0;
+  private lastSync = 0;
+  private syncing = false;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   /** Inicializa: carga la partida y arranca el bucle. Devuelve el resumen offline. */
   async start(): Promise<OfflineReport | null> {
     const report = await SaveSystem.instance.load();
+    MissionSystem.instance.start();
     this.lastTick = Clock.now();
     this.lastSave = this.lastTick;
     this.timer = setInterval(() => this.tick(), 1000);
@@ -55,8 +63,34 @@ export class GameManager {
     this.lastTick = now;
     if (elapsed <= 0) return;
     PetManager.instance.update(Math.min(elapsed, GameConfig.MAX_OFFLINE_MS), elapsed > BACKGROUND_GAP_MS);
-    BreedingSystem.instance.update(now);
     if (now - this.lastSave >= GameConfig.AUTOSAVE_MS) void this.save();
+    if (now - this.lastSync >= OnlineConfig.SYNC_EVERY_MS) void this.syncOnline();
+  }
+
+  /**
+   * Sincroniza con el servidor: sube la mascota principal (para el parque de
+   * los demás) y recibe monedas y adopciones de otros jugadores.
+   */
+  async syncOnline(): Promise<boolean> {
+    const online = OnlineService.instance;
+    this.lastSync = Clock.now();
+    if (this.syncing || !online.isConfigured()) return false;
+    this.syncing = true;
+    try {
+      const r = await online.sync(PetManager.instance.selected);
+      const adopted = BreedingSystem.instance.applyAdopted(r.adoptadas);
+      if (r.monedas > 0) {
+        EconomySystem.instance.addCoins(r.monedas);
+        toast(`🌐 Otros jugadores te pagaron ${r.monedas} 🪙`, 'good');
+      }
+      EventBus.instance.emit('online:synced', { coins: r.monedas, adopted });
+      return true;
+    } catch {
+      EventBus.instance.emit('online:status', { status: online.status });
+      return false;
+    } finally {
+      this.syncing = false;
+    }
   }
 
   async save(): Promise<void> {

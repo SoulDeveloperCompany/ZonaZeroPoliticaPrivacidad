@@ -5,6 +5,7 @@
  * Al terminar se aplica la acción "bañar". Se puede salir en cualquier momento
  * (sin efecto ni tiempo de espera).
  */
+import { GameConfig } from '../../core/GameConfig';
 import { InteractionSystem, describeFailure } from '../../systems/interaction/InteractionSystem';
 import type { Pet } from '../../systems/pet/Pet';
 import { petSVG } from '../common';
@@ -38,6 +39,9 @@ export function openBath(pet: Pet): Promise<boolean> {
         <button class="bath-tool" data-tool="water" disabled>🚿 Agua</button>
       </div>`;
     document.body.appendChild(scene);
+    if (pet.stats.hygiene >= GameConfig.COLD.hygieneThreshold) {
+      scene.querySelector('.bath-step')!.textContent = '⚠️ Ya está limpia: otro baño puede resfriarla. Frota el jabón si aun así quieres bañarla 🧼';
+    }
 
     const stage = scene.querySelector<HTMLElement>('.bath-stage')!;
     const petBox = scene.querySelector<HTMLElement>('.bath-pet')!;
@@ -123,7 +127,7 @@ export function openBath(pet: Pet): Promise<boolean> {
         close(false);
         return;
       }
-      step.textContent = `✨ ¡${pet.name} quedó reluciente!`;
+      step.textContent = r.message.includes('Achís') ? `🤧 ${pet.name} se resfrió: −salud` : `✨ ¡${pet.name} quedó reluciente!`;
       petBox.classList.add('sparkle');
       for (let i = 0; i < 10; i++) {
         const s = el('span', 'shine', '✨');

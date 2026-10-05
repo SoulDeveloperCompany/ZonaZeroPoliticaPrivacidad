@@ -77,6 +77,9 @@ export const GameConfig = {
     boostMultiplier: 2,
   },
 
+  /** Bañarla cuando ya está limpia (higiene >= umbral) la resfría. */
+  COLD: { hygieneThreshold: 80, healthDamage: 12, happinessDamage: 4 },
+
   /** Mascotas activas simultáneas; las demás van al rancho. */
   MAX_ACTIVE_PETS: 3,
 

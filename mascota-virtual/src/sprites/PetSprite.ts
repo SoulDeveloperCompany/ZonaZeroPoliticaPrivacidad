@@ -96,8 +96,13 @@ function path(d: string, fill: string, o = '', extra = ''): string {
   return `<path d="${d}" fill="${fill}"${stroke} ${extra}/>`;
 }
 
-/** Ojos según el estado de ánimo. */
+/** Ojos según el estado de ánimo (los ojos abiertos parpadean con CSS). */
 function eyes(c: Ctx, lx: number, rx: number, y: number, r = 6): string {
+  const open = !['happy', 'sleeping', 'tired', 'sick'].includes(c.mood);
+  return `<g class="pet-eyes${open ? ' blink' : ''}">${eyeShapes(c, lx, rx, y, r)}</g>`;
+}
+
+function eyeShapes(c: Ctx, lx: number, rx: number, y: number, r: number): string {
   r *= c.eyeScale;
   const arc = (x: number, up: boolean) =>
     `<path d="M${x - r} ${y} Q${x} ${up ? y - r * 1.4 : y + r * 1.2} ${x + r} ${y}" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`;
