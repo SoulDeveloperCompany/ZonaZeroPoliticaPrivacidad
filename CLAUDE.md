@@ -58,6 +58,8 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
   el multijugador se prueba en GitHub Pages o en el APK.
 
 ## Pendiente
-- Prueba cerrada en Play (12 testers × 14 días) y luego acceso a producción.
+- Prueba cerrada «Alpha» enviada a revisión el 5 oct 2026 (v1.1.0, 178 países, listas «Testers Mi Zoológico» y
+  «Yo interna», como Zoo). Cuando la aprueben: 12 testers × 14 días y luego pedir acceso a producción.
+  Las próximas versiones se suben a ese mismo canal (Prueba cerrada › Crear nueva versión).
 - Añadir como colaborador en GitHub a `carloseduardobonillapalma-lgtm` (Settings › Collaborators).
 - Ideas: notificaciones locales en Android, sonidos, nombre definitivo.
