@@ -125,27 +125,38 @@ describe('PetSystem', () => {
 });
 
 describe('GrowthSystem', () => {
-  it('1 hora real = 1 día de juego y avanza por las etapas', () => {
+  it('la edad va en días reales: cachorro al día 1, juvenil al 3, adulto al 7 y senior al 60', () => {
     const pet = PetManager.instance.createStarter(Species.Dog, 'Rex');
-    const stages: GrowthStage[] = [];
-    for (let h = 0; h < 50; h++) {
-      pamper(pet);
-      advance(HOUR);
-      stages.push(pet.stage);
+    const enDia: Record<number, GrowthStage> = {};
+    for (let d = 1; d <= 61; d++) {
+      for (let h = 0; h < 24; h += 6) {
+        pamper(pet);
+        advance(6 * HOUR);
+      }
+      enDia[d] = pet.stage;
     }
-    expect(pet.data.ageDays).toBeCloseTo(50, 0);
-    expect(stages).toContain(GrowthStage.Puppy);
-    expect(stages).toContain(GrowthStage.Juvenile);
-    expect(stages).toContain(GrowthStage.Adult);
+    expect(pet.data.ageDays).toBeCloseTo(61, 1);
+    expect(enDia[1]).toBe(GrowthStage.Puppy);
+    expect(enDia[2]).toBe(GrowthStage.Puppy);
+    expect(enDia[3]).toBe(GrowthStage.Juvenile);
+    expect(enDia[7]).toBe(GrowthStage.Adult);
+    expect(enDia[59]).toBe(GrowthStage.Adult);
     expect(pet.stage).toBe(GrowthStage.Senior);
+    expect(GrowthSystem.instance.isUnlocked(pet, 'breed')).toBe(true);
+  });
+
+  it('una noche fuera (8 h) no pasa de bebé a juvenil: los hitos ya no ocurren mientras duermes', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Rex');
+    advance(8 * HOUR, true);
+    expect(pet.stage).toBe(GrowthStage.Baby);
   });
 
   it('el buen cuidado temprano da +10% a los stats base del adulto', () => {
     const cared = PetManager.instance.createStarter(Species.Dog, 'Bien');
     const baseAgility = cared.data.genes.baseAgility;
-    for (let h = 0; h < 15; h++) {
+    for (let h = 0; h < 7 * 24 + 2; h += 2) {
       pamper(cared);
-      advance(HOUR);
+      advance(2 * HOUR);
     }
     expect(cared.stage).toBe(GrowthStage.Adult);
     expect(cared.data.wellCared).toBe(true);
@@ -154,17 +165,34 @@ describe('GrowthSystem', () => {
 
   it('la barra de progreso va de 0 a 1 entre etapas', () => {
     const pet = PetManager.instance.createStarter(Species.Cat, 'Mia');
-    pet.data.ageDays = 1.5;
+    pet.data.ageDays = 0.5;
     const p = GrowthSystem.instance.progress(pet);
     expect(p.progress).toBeCloseTo(0.5);
     expect(p.next?.id).toBe(GrowthStage.Puppy);
   });
 
-  it('los aceleradores suman días', () => {
+  it('las vitaminas suman 6 h de crecimiento, con un máximo de 2 al día', () => {
     const pet = PetManager.instance.createStarter(Species.Parrot, 'Kiwi');
-    EconomySystem.instance.addItem('acc_growth_vitamin', 3);
-    for (let i = 0; i < 3; i++) EconomySystem.instance.useItem(pet.id, 'acc_growth_vitamin');
-    expect(pet.stage).toBe(GrowthStage.Puppy);
+    EconomySystem.instance.addItem('acc_growth_vitamin', 4);
+    expect(EconomySystem.instance.useItem(pet.id, 'acc_growth_vitamin').ok).toBe(true);
+    expect(EconomySystem.instance.useItem(pet.id, 'acc_growth_vitamin').ok).toBe(true);
+    const tercera = EconomySystem.instance.useItem(pet.id, 'acc_growth_vitamin');
+    expect(tercera.ok).toBe(false);
+    expect(EconomySystem.instance.quantity('acc_growth_vitamin')).toBe(2);
+    expect(pet.data.ageDays).toBeCloseTo(0.5, 3);
+    advance(24 * HOUR, true);
+    expect(EconomySystem.instance.useItem(pet.id, 'acc_growth_vitamin').ok).toBe(true);
+  });
+
+  it('migra partidas v1 (edad en horas) a v2 sin que nadie retroceda de etapa', () => {
+    const casos: [number, GrowthStage][] = [[2, GrowthStage.Baby], [5, GrowthStage.Puppy], [10, GrowthStage.Juvenile], [20, GrowthStage.Adult], [50, GrowthStage.Senior]];
+    for (const [edad, etapa] of casos) {
+      const p = Pet.create({ name: 'V1', speciesId: Species.Dog, now }).data;
+      p.ageDays = edad;
+      p.stage = etapa;
+      const data = SaveSystem.instance.migrate({ ...GameState.instance.data, version: 1, pets: [p] });
+      expect(GrowthSystem.instance.stageForAge(data.pets[0].ageDays)).toBe(etapa);
+    }
   });
 });
 
@@ -486,7 +514,7 @@ describe('SaveSystem', () => {
     expect(loaded.name).toBe('Nugget');
     expect(EconomySystem.instance.coins).toBe(coins);
     expect(loaded.stats.hunger).toBeGreaterThan(20);
-    expect(loaded.data.ageDays).toBeCloseTo(3, 1);
+    expect(loaded.data.ageDays).toBeCloseTo(3 / 24, 2);
     expect(GameState.instance.data.album.length).toBeGreaterThan(0);
   });
 

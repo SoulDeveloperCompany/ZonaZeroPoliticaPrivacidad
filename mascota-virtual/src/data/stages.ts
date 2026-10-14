@@ -34,7 +34,7 @@ export const STAGES: StageDefinition[] = [
   {
     id: GrowthStage.Puppy,
     name: 'Cachorro',
-    startDay: 3,
+    startDay: 1,
     scale: 0.75,
     statCap: 50,
     unlocks: [...BASIC, Feature.Play],
@@ -43,7 +43,7 @@ export const STAGES: StageDefinition[] = [
   {
     id: GrowthStage.Juvenile,
     name: 'Juvenil',
-    startDay: 7,
+    startDay: 3,
     scale: 0.88,
     statCap: 75,
     unlocks: [...BASIC, Feature.Play, Feature.Train, Feature.Walk, Feature.Park],
@@ -52,7 +52,7 @@ export const STAGES: StageDefinition[] = [
   {
     id: GrowthStage.Adult,
     name: 'Adulto',
-    startDay: 14,
+    startDay: 7,
     scale: 1,
     statCap: 100,
     unlocks: [
@@ -69,10 +69,10 @@ export const STAGES: StageDefinition[] = [
   {
     id: GrowthStage.Senior,
     name: 'Senior',
-    startDay: 45,
+    startDay: 60,
     scale: 1,
     statCap: 90,
-    unlocks: [...BASIC, Feature.Play, Feature.Train, Feature.Walk, Feature.Park, Feature.Compete],
-    description: 'Sabio y tranquilo. Sigue compitiendo, pero ya no tiene crías.',
+    unlocks: [...BASIC, Feature.Play, Feature.Train, Feature.Walk, Feature.Park, Feature.Compete, Feature.Breed],
+    description: 'Sabio y tranquilo. Sigue compitiendo y puede tener crías.',
   },
 ];

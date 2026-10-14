@@ -3,7 +3,10 @@
  * ajustar la dificultad sin tocar la lógica de los sistemas.
  */
 export const GameConfig = {
-  /** 1 hora real = 1 día de juego. */
+  /**
+   * Unidad interna de la simulación de necesidades: 1 "día de juego" = 1 hora real.
+   * (Las necesidades se expresan por esta unidad; la EDAD va aparte, en días reales: ver GROWTH.ageDaysPerGameDay.)
+   */
   REAL_MS_PER_GAME_DAY: 60 * 60 * 1000,
 
   /** Paso máximo de simulación (en días de juego) para que el cálculo offline sea preciso. */
@@ -21,14 +24,14 @@ export const GameConfig = {
   OFFLINE_LIMITS: { maxHunger: 70, minHappiness: 30, minHygiene: 30, minEnergy: 15 },
 
   /**
-   * Cambio de stats por DÍA de juego (= 1 hora real).
-   * Valores positivos suben el stat, negativos lo bajan.
+   * Cambio de stats por hora real (unidad interna). Valores positivos suben el stat, negativos lo bajan.
+   * Con estos valores una comida (−35) dura ~7 h y entrar mañana y noche basta (ver docs/AUDITORIA-2026-10.md, P2).
    */
   DECAY_PER_DAY: {
-    hunger: 12, // el hambre sube
-    happiness: -8,
+    hunger: 5, // el hambre sube
+    happiness: -3,
     energy: -7,
-    hygiene: -7,
+    hygiene: -2.5,
   },
 
   /**
@@ -80,6 +83,10 @@ export const GameConfig = {
     /** Bonus a los stats base del adulto si fue bien cuidado. */
     wellCaredBonus: 0.1,
     boostMultiplier: 2,
+    /** La edad avanza en días reales: 1 día de edad por cada 24 h (= 24 unidades internas). */
+    ageDaysPerGameDay: 1 / 24,
+    /** Vitaminas de crecimiento que se pueden usar al día (en total). */
+    vitaminsPerDay: 2,
   },
 
   /** Bañarla cuando ya está limpia (higiene >= umbral) la resfría. */
@@ -96,7 +103,8 @@ export const GameConfig = {
 
   /** Crianza. */
   BREEDING: {
-    cooldownDays: 6,
+    /** Días reales de espera entre crías. */
+    cooldownDays: 1,
     minHappiness: 50,
     minHealth: 60,
     npcPartnerFee: 120,

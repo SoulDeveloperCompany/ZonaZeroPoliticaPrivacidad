@@ -24,7 +24,7 @@ export class NewPetScreen implements Screen {
         <p>Elige tu mascota. La criarás desde bebé: aliméntala, juega, báñala, entrénala... ¡y compite!</p>
         <div class="species-slot"></div>
         <div class="field"><span>Nombre</span><div class="name-slot"></div></div>
-        <p class="hint">El sexo se decide al nacer. 1 hora real = 1 día en el juego.</p>
+        <p class="hint">El sexo se decide al nacer. Crece en días reales: mañana ya será cachorro.</p>
         <button class="btn btn-primary btn-big" data-act="create">¡Adoptar!</button>
       </div>`;
     // El botón "Adoptar" queda apagado hasta que haya un nombre

@@ -9,6 +9,7 @@
  *   adult                    la hace adulta con vitaminas (+ monedas de prueba)
  *   coins                    +1000 monedas y +20 estrellas
  *   ff:<horas>               adelanta el reloj
+ *   ffdia                    +1 día real sin cerrar la ventana que salga (celebraciones)
  *   nav:<pantalla>           home | shop | events | park | family | album
  *   click:<selector>         toca un elemento
  *   fill:<selector>=<texto>  escribe en un campo
@@ -85,6 +86,15 @@ for (const step of steps) {
         await closeAll();
         break;
       case 'ff': await debug('ff1', Number(arg)); break;
+      case 'ffdia': {
+        // +1 día real dejando abierta la ventana que aparezca (p. ej. la celebración de crecer)
+        await page.click('[data-act="settings"]');
+        await page.click('details.debug summary');
+        await page.click('[data-act="ff24"]');
+        await page.waitForTimeout(300);
+        await page.evaluate(() => document.querySelector('.modal-backdrop')?.remove()); // cierra Ajustes (queda debajo)
+        break;
+      }
       case 'nav': await page.click(`.nav-btn[data-id="${arg}"]`); break;
       case 'click': await page.click(arg, { timeout: 3000 }); break;
       case 'fill': { const [sel, txt] = arg.split('='); await page.fill(sel, txt ?? ''); break; }

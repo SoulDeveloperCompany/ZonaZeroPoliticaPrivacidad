@@ -190,7 +190,7 @@ export class Pet {
 
   /**
    * Aplica el paso del tiempo a los stats (hambre sube, felicidad baja...).
-   * @param days días de juego transcurridos (1 día = 1 hora real)
+   * @param days unidades internas transcurridas (1 = 1 hora real)
    */
   simulateDecay(days: number, ctx: DecayContext): void {
     if (!this.isActive || days <= 0) return;

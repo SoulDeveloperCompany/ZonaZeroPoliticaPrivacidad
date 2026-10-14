@@ -1,13 +1,13 @@
 /**
  * GrowthSystem (Singleton): edad, etapas y desbloqueos.
  *
- * - 1 hora real = 1 día de juego (los aceleradores lo duplican o suman días).
- * - Etapas: Bebé (0-3), Cachorro (3-7), Juvenil (7-14), Adulto (14+), Senior (45+).
+ * - La edad se cuenta en días REALES (los aceleradores la duplican o suman horas).
+ * - Etapas: Bebé (0-1), Cachorro (1-3), Juvenil (3-7), Adulto (7-60), Senior (60+).
  * - Mientras es Bebé/Cachorro/Juvenil se mide la calidad del cuidado; si al
  *   hacerse adulto la media es buena, sus stats base suben un 10 %.
  */
 import { Clock } from '../../core/Clock';
-import { EventBus, toast } from '../../core/EventBus';
+import { EventBus } from '../../core/EventBus';
 import { GameConfig } from '../../core/GameConfig';
 import { clamp } from '../../core/random';
 import { DataRegistry } from '../../data/DataRegistry';
@@ -43,7 +43,8 @@ export class GrowthSystem {
   /** Etapa que corresponde a una edad (en días de juego). */
   stageForAge(ageDays: number): GrowthStage {
     let result = this.stages[0].id;
-    for (const s of this.stages) if (ageDays >= s.startDay) result = s.id;
+    // Tolerancia para errores de redondeo al sumar pasos de simulación (24 × 1/24 = 0,99999…)
+    for (const s of this.stages) if (ageDays + 1e-6 >= s.startDay) result = s.id;
     return result;
   }
 
@@ -91,7 +92,7 @@ export class GrowthSystem {
       pet.data.care.sum += pet.wellbeing * days;
       pet.data.care.weight += days;
     }
-    pet.data.ageDays += days * this.growthMultiplier(pet, now);
+    pet.data.ageDays += days * GameConfig.GROWTH.ageDaysPerGameDay * this.growthMultiplier(pet, now);
     if (pet.data.growthBoostUntil !== null && pet.data.growthBoostUntil <= now) {
       pet.data.growthBoostUntil = null;
     }
@@ -141,7 +142,6 @@ export class GrowthSystem {
     if (to === GrowthStage.Adult) this.applyAdultBonus(pet);
 
     EventBus.instance.emit('pet:stageChanged', { petId: pet.id, from, to });
-    toast(`¡${pet.name} ha crecido! Ahora es ${def.name}.`, 'good');
   }
 
   /** +10 % a los stats base del adulto si fue bien cuidado de pequeño. */

@@ -24,6 +24,9 @@ import { HomeScreen } from './screens/HomeScreen';
 import { NewPetScreen } from './screens/NewPetScreen';
 import { ParkScreen } from './screens/ParkScreen';
 import { Analytics } from '../systems/online/Analytics';
+import { celebrate, celebrateStage } from './Celebration';
+import { feedback, play, type SoundId } from './Feedback';
+import { Tutorial } from './Tutorial';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -79,6 +82,26 @@ export class App {
     bus.on('pet:created', ({ reason }) => {
       if (reason === 'start') void GameManager.instance.syncOnline();
     });
+    // Celebraciones, sonido y vibración (Auditoría P7)
+    bus.on('pet:stageChanged', ({ petId, from, to }) => {
+      const pet = PetManager.instance.get(petId);
+      if (pet) celebrateStage(pet, from, to);
+    });
+    bus.on('breeding:born', ({ babyId }) => {
+      const baby = PetManager.instance.get(babyId);
+      if (baby) celebrate({ pet: baby, title: `🐣 ¡Ha nacido ${esc(baby.name)}!`, text: 'Una nueva vida en la familia. Mira de quién ha heredado los colores.' });
+    });
+    const SONIDO_ACCION: Record<string, SoundId> = { feed: 'eat', pet: 'pet', bathe: 'splash', play: 'happy', train: 'happy', walk: 'happy' };
+    bus.on('interaction:performed', ({ actionId, coinsFound }) => {
+      feedback(SONIDO_ACCION[actionId] ?? 'tap', actionId === 'pet' ? 'light' : 'medium');
+      if (coinsFound) setTimeout(() => play('coin'), 250);
+    });
+    bus.on('economy:purchase', () => feedback('coin', 'light'));
+    bus.on('game:finished', () => feedback('happy', 'success'));
+    bus.on('online:gift', () => feedback('coin', 'success'));
+    this.shell.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.btn, .nav-btn, .tab')) play('tap');
+    });
     bus.on('adoption:completed', ({ petName, coins }) => showToast(`🤝 ${petName} encontró un nuevo hogar. +${coins} 🪙`, 'good'));
 
     this.updateWallet();
@@ -100,6 +123,7 @@ export class App {
       this.go('home');
       if (report) this.showOfflineReport(report);
       this.offerDaily();
+      Tutorial.maybeStart();
     }
   }
 
@@ -129,7 +153,8 @@ export class App {
     this.current = new NewPetScreen(() => {
       void GameManager.instance.save();
       this.go('home');
-      this.offerDaily();
+      if (GameState.instance.data.tutorialDone) this.offerDaily();
+      else Tutorial.maybeStart();
     });
     this.current.mount(root);
   }
@@ -182,6 +207,10 @@ export class App {
           <label class="field-row hint"><input type="checkbox" data-act="analytics" ${Analytics.instance.enabled ? 'checked' : ''}> Enviar estadísticas anónimas de uso (ayudan a mejorar el juego)</label>
         </div>
         <p class="hint">Tu partida se guarda sola cada 10 segundos y al salir.</p>
+        <div class="settings-toggles">
+          <label class="field-row"><input type="checkbox" data-act="sound" ${GameState.instance.data.settings.sound ? 'checked' : ''}> 🔊 Sonidos</label>
+          <label class="field-row"><input type="checkbox" data-act="haptics" ${GameState.instance.data.settings.haptics ? 'checked' : ''}> 📳 Vibración</label>
+        </div>
         <div class="settings-list">
           <button class="btn" data-act="save">💾 Guardar ahora</button>
           <button class="btn" data-act="export">📤 Copia de seguridad (exportar)</button>
@@ -198,6 +227,10 @@ export class App {
         <p class="hint center">Patitas v0.1 · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
+        if (act === 'sound' || act === 'haptics') {
+          GameState.instance.data.settings[act] = (modal.body.querySelector(`[data-act="${act}"]`) as HTMLInputElement).checked;
+          return true;
+        }
         if (act === 'analytics') {
           Analytics.instance.setEnabled((modal.body.querySelector('[data-act="analytics"]') as HTMLInputElement).checked);
           return true;

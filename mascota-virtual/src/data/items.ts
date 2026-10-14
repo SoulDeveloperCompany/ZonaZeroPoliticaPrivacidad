@@ -264,20 +264,20 @@ export const ITEMS: ItemDefinition[] = [
   {
     id: 'acc_growth_vitamin',
     name: 'Vitamina de crecimiento',
-    description: 'Suma 1 día de edad al instante.',
+    description: 'Suma 6 horas de crecimiento al instante (máx. 2 al día).',
     category: 'accelerator',
     icon: '💊',
-    price: { coins: 80 },
-    growthDays: 1,
+    price: { coins: 150 },
+    growthDays: 0.25,
   },
   {
     id: 'acc_growth_clock',
     name: 'Reloj solar',
-    description: 'Crece al doble de velocidad durante 1 hora.',
+    description: 'Crece al doble de velocidad durante 24 horas.',
     category: 'accelerator',
     icon: '⏳',
     price: { stars: 3 },
-    growthBoostMs: 60 * 60 * 1000,
+    growthBoostMs: 24 * 60 * 60 * 1000,
   },
 
   // ---------- Medicina ----------

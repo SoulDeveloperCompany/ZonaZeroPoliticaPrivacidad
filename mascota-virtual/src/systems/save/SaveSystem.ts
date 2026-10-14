@@ -174,6 +174,7 @@ export class SaveSystem {
       daily: { ...defaults.daily, ...raw.daily },
       counters: { ...defaults.counters, ...raw.counters },
       online: { ...defaults.online, ...raw.online },
+      settings: { ...defaults.settings, ...raw.settings },
       version: SAVE_VERSION,
     } as GameData;
 
@@ -188,6 +189,10 @@ export class SaveSystem {
         care: { ...template.care, ...p.care },
       } as PetData;
     });
+    if ((raw.version ?? 1) < 2) {
+      data.pets.forEach(migrateAgeV1toV2);
+      if (data.pets.length > 0) data.tutorialDone = true;
+    }
     return data;
   }
 
@@ -200,4 +205,22 @@ export class SaveSystem {
   importJson(json: string): OfflineReport {
     return this.loadFromJson(json);
   }
+}
+
+/** Inicio de cada etapa antes (v1, días de 1 hora) y ahora (v2, días reales). */
+const STARTS_V1 = [0, 3, 7, 14, 45];
+const STARTS_V2 = [0, 1, 3, 7, 60];
+
+/**
+ * v1 → v2: la edad pasa de "días de juego de 1 hora" a días reales.
+ * Nadie retrocede de etapa: se conserva la etapa y el avance proporcional dentro de ella.
+ */
+export function migrateAgeV1toV2(p: PetData): void {
+  const old = p.ageDays ?? 0;
+  let i = 0;
+  while (i + 1 < STARTS_V1.length && old >= STARTS_V1[i + 1]) i++;
+  const frac = i + 1 < STARTS_V1.length ? (old - STARTS_V1[i]) / (STARTS_V1[i + 1] - STARTS_V1[i]) : 0;
+  const span = i + 1 < STARTS_V2.length ? STARTS_V2[i + 1] - STARTS_V2[i] : 0;
+  p.ageDays = i + 1 < STARTS_V1.length ? STARTS_V2[i] + frac * span : STARTS_V2[i] + (old - STARTS_V1[i]) / 24;
+  p.lastBredAtDay = null;
 }

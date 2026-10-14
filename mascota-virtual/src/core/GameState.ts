@@ -7,7 +7,8 @@ import type { PetData } from '../systems/pet/PetTypes';
 import type { MemoryEntry } from '../systems/save/AlbumSystem';
 import type { MissionProgress } from '../systems/games/MissionSystem';
 
-export const SAVE_VERSION = 1;
+/** 2: la edad pasa a días reales (ver SaveSystem.migrate). */
+export const SAVE_VERSION = 2;
 
 export interface GameData {
   version: number;
@@ -26,10 +27,14 @@ export interface GameData {
   competitionCooldowns: Record<string, number>;
   counters: { actions: number; competitions: number; births: number; rescues: number };
   tutorialDone: boolean;
+  /** Preferencias del jugador (Ajustes). */
+  settings: { sound: boolean; haptics: boolean };
   /** Récord por minijuego. */
   gameRecords: Record<string, number>;
   /** Monedas ganadas hoy por minijuego (tope diario). */
   gamesToday: { day: string; coins: Record<string, number> };
+  /** Vitaminas de crecimiento usadas hoy (máximo GameConfig.GROWTH.vitaminsPerDay). */
+  vitaminsToday: { day: string; count: number };
   /** Misiones diarias. */
   missions: { day: string; list: MissionProgress[]; bonusClaimed: boolean };
   /** Identidad para el servidor (como en Mi Zoológico). */
@@ -59,8 +64,10 @@ export function createEmptyGameData(now: number): GameData {
     competitionCooldowns: {},
     counters: { actions: 0, competitions: 0, births: 0, rescues: 0 },
     tutorialDone: false,
+    settings: { sound: true, haptics: true },
     gameRecords: {},
     gamesToday: { day: '', coins: {} },
+    vitaminsToday: { day: '', count: 0 },
     missions: { day: '', list: [], bonusClaimed: false },
     player: { id: '', apodo: '' },
     online: { url: '', lastSync: 0, analytics: true, pendingEvents: [] },

@@ -20,7 +20,11 @@ export type MemoryKind =
   | 'escape'
   | 'rescue'
   | 'farewell'
-  | 'adoption';
+  | 'adoption'
+  | 'gift'
+  | 'birthday'
+  | 'first'
+  | 'bond';
 
 export interface MemoryEntry {
   id: string;
@@ -45,6 +49,10 @@ const KIND_ICONS: Record<MemoryKind, string> = {
   rescue: '🏠',
   farewell: '👋',
   adoption: '🤝',
+  gift: '🎁',
+  birthday: '🎂',
+  first: '✨',
+  bond: '💞',
 };
 
 export class AlbumSystem {

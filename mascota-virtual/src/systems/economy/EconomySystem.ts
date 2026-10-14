@@ -20,7 +20,7 @@ export type BuyResult = { ok: true } | { ok: false; reason: 'funds' | 'owned' | 
 
 export type UseResult =
   | { ok: true; message: string; deltas?: StatDeltas }
-  | { ok: false; reason: 'noItem' | 'invalid' | 'stage' | 'notApplicable'; message: string };
+  | { ok: false; reason: 'noItem' | 'invalid' | 'stage' | 'notApplicable' | 'limit'; message: string };
 
 export class EconomySystem {
   private static _instance: EconomySystem | null = null;
@@ -152,9 +152,15 @@ export class EconomySystem {
     if (!pet.isActive) return { ok: false, reason: 'notApplicable', message: 'No está en casa' };
 
     if (item.growthDays) {
+      const hoy = this.dayKey(Clock.now());
+      const usadas = this.state.vitaminsToday.day === hoy ? this.state.vitaminsToday.count : 0;
+      if (usadas >= GameConfig.GROWTH.vitaminsPerDay) {
+        return { ok: false, reason: 'limit', message: `Ya usaste ${GameConfig.GROWTH.vitaminsPerDay} vitaminas hoy. ¡Mañana más!` };
+      }
       this.consume(itemId);
+      this.state.vitaminsToday = { day: hoy, count: usadas + 1 };
       GrowthSystem.instance.addDays(pet, item.growthDays);
-      return { ok: true, message: `+${item.growthDays} día de edad` };
+      return { ok: true, message: `+${Math.round(item.growthDays * 24)} h de crecimiento` };
     }
     if (item.growthBoostMs) {
       this.consume(itemId);
