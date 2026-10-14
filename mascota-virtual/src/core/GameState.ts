@@ -34,7 +34,14 @@ export interface GameData {
   missions: { day: string; list: MissionProgress[]; bonusClaimed: boolean };
   /** Identidad para el servidor (como en Mi Zoológico). */
   player: { id: string; apodo: string };
-  online: { url: string; lastSync: number };
+  online: {
+    url: string;
+    lastSync: number;
+    /** Estadísticas anónimas de uso activadas (Ajustes › Servidor). */
+    analytics: boolean;
+    /** Eventos de uso pendientes de enviar (ver systems/online/Analytics.ts). */
+    pendingEvents: { t: number; e: string; x?: string }[];
+  };
 }
 
 export function createEmptyGameData(now: number): GameData {
@@ -56,7 +63,7 @@ export function createEmptyGameData(now: number): GameData {
     gamesToday: { day: '', coins: {} },
     missions: { day: '', list: [], bonusClaimed: false },
     player: { id: '', apodo: '' },
-    online: { url: '', lastSync: 0 },
+    online: { url: '', lastSync: 0, analytics: true, pendingEvents: [] },
   };
 }
 

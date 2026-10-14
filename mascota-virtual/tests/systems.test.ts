@@ -18,6 +18,7 @@ import { Pet } from '../src/systems/pet/Pet';
 import { PetManager } from '../src/systems/pet/PetManager';
 import { GrowthStage, PetLocation, Sex, Species } from '../src/systems/pet/PetTypes';
 import { SaveSystem } from '../src/systems/save/SaveSystem';
+import { Analytics } from '../src/systems/online/Analytics';
 import { MemoryStorage } from '../src/systems/save/Storage';
 
 const HOUR = 60 * 60 * 1000;
@@ -82,15 +83,36 @@ describe('PetSystem', () => {
     expect(pet.stats.health).toBeGreaterThan(0);
   });
 
-  it('si pasan 48 h sin encontrarla se va con otra familia (queda en el álbum)', () => {
+  it('si pasan 48 h sin encontrarla vuelve sola a casa (nunca se pierde)', () => {
     const pet = PetManager.instance.createStarter(Species.Turtle, 'Tuga');
     pet.stats.health = 0.5;
     pet.stats.hunger = 100;
     advance(HOUR);
     expect(pet.isEscaped).toBe(true);
     advance(49 * HOUR, true);
-    expect(PetManager.instance.get(pet.id)).toBeUndefined();
-    expect(GameState.instance.data.album.some((m) => m.kind === 'farewell')).toBe(true);
+    expect(PetManager.instance.get(pet.id)?.isActive).toBe(true);
+    expect(GameState.instance.data.album.some((m) => m.title === '¡Volvió sola a casa!')).toBe(true);
+  });
+
+  it.each([4, 24, 72, 168])('%i h sin abrir el juego: la salud no baja y no se escapa', (horas) => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    Object.assign(pet.stats, { hunger: 5, happiness: 100, energy: 100, health: 100, hygiene: 100 });
+    advance(horas * HOUR, true);
+    const s = PetManager.instance.get(pet.id)!;
+    expect(s.isActive).toBe(true);
+    expect(s.stats.health).toBe(100);
+    expect(s.stats.hunger).toBeLessThanOrEqual(GameConfig.OFFLINE_LIMITS.maxHunger + 0.001);
+    expect(s.stats.happiness).toBeGreaterThanOrEqual(GameConfig.OFFLINE_LIMITS.minHappiness - 0.001);
+    expect(s.stats.hygiene).toBeGreaterThanOrEqual(GameConfig.OFFLINE_LIMITS.minHygiene - 0.001);
+  });
+
+  it('offline no empeora lo que ya estaba peor que el límite', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    Object.assign(pet.stats, { hunger: 85, happiness: 20, energy: 60, health: 70, hygiene: 25 });
+    advance(24 * HOUR, true);
+    expect(pet.stats.hunger).toBeLessThanOrEqual(85.001);
+    expect(pet.stats.happiness).toBeGreaterThanOrEqual(19.999);
+    expect(pet.stats.health).toBeGreaterThanOrEqual(70);
   });
 
   it('respeta el límite de 3 mascotas en casa; el resto va al rancho', () => {
@@ -341,6 +363,29 @@ describe('Servidor (Google Sheets)', () => {
     expect(calls.every((c) => typeof c.id === 'string' && /^[a-f0-9]{24}$/.test(c.id as string))).toBe(true);
   });
 
+  it('envía las estadísticas anónimas en la sincronización y las borra al confirmarse', async () => {
+    (Analytics as unknown as { _instance: Analytics | null })._instance = null;
+    Analytics.instance.start();
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    EventBus.instance.emit('pet:stageChanged', { petId: pet.id, from: GrowthStage.Baby, to: GrowthStage.Puppy });
+    OnlineService.instance.transport = async (_m, _u, payload) => {
+      calls.push(payload);
+      return { ok: true, monedas: 0, adoptadas: [], regalos: [] };
+    };
+    expect(await GameManager.instance.syncOnline()).toBe(true);
+    const enviados = calls[0].eventos as { e: string; x?: string }[];
+    expect(enviados.map((x) => x.e)).toEqual(expect.arrayContaining(['sesion', 'adopcion_inicial', 'etapa']));
+    expect(enviados.find((x) => x.e === 'etapa')?.x).toBe(GrowthStage.Puppy);
+    expect(GameState.instance.data.online.pendingEvents).toHaveLength(0);
+  });
+
+  it('si el jugador desactiva las estadísticas no se guarda ni se envía nada', () => {
+    Analytics.instance.setEnabled(false);
+    Analytics.instance.track('compra', 'food_cake');
+    expect(Analytics.instance.pending()).toHaveLength(0);
+    Analytics.instance.setEnabled(true);
+  });
+
   it('recibe regalos escritos en la hoja (monedas, estrellas y objeto)', async () => {
     PetManager.instance.createStarter(Species.Dog, 'Toby');
     OnlineService.instance.transport = async () => ({
@@ -451,5 +496,27 @@ describe('SaveSystem', () => {
     pet.data.sleeping = true;
     advance(8 * HOUR, true);
     expect(pet.isActive).toBe(true);
+  });
+});
+
+describe('Guardado robusto', () => {
+  it('si la partida principal está dañada, carga la copia de respaldo', async () => {
+    const pet = PetManager.instance.createStarter(Species.Cat, 'Michi');
+    await SaveSystem.instance.save();
+    await SaveSystem.instance.storage.set('mascota_virtual_save', '{"pets": [ roto');
+    GameState.instance.reset(now);
+    PetManager.instance.rebuild();
+    await SaveSystem.instance.load();
+    expect(PetManager.instance.get(pet.id)?.name).toBe('Michi');
+    expect(SaveSystem.instance.recoveredFrom).toBe('backup');
+  });
+
+  it('si las dos están dañadas, empieza de nuevo sin bloquear el juego y guarda lo dañado', async () => {
+    await SaveSystem.instance.storage.set('mascota_virtual_save', 'basura');
+    await SaveSystem.instance.storage.set('mascota_virtual_save_bak', '{"sin":"mascotas"}');
+    await expect(SaveSystem.instance.load()).resolves.toBeNull();
+    expect(PetManager.instance.all()).toHaveLength(0);
+    expect(SaveSystem.instance.recoveredFrom).toBe('none');
+    expect(await SaveSystem.instance.storage.get('mascota_virtual_save_danada')).toBe('basura');
   });
 });

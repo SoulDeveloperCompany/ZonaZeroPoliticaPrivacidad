@@ -11,16 +11,29 @@
 //   Parejas    · mascotas adultas ofrecidas para tener crías
 //   Puntajes   · mejor puntaje de cada jugador en cada competencia
 //   Regalos    · regalos que TÚ escribes a mano (a un jugador o a "todos")
+//   Eventos    · estadísticas anónimas de uso (sesiones, etapas, minijuegos...). Resumen: ?accion=metricas
+//
+// Protección contra trampas (el juego decide las monedas en el móvil, así que el servidor pone topes):
+//   precio de adopción ≤ PRECIO_MAX · tarifa de pareja entre TARIFA_MIN y TARIFA_MAX
+//   cada dueño cobra como mucho INGRESO_MAX_DIA al día de otros jugadores
+//   cada jugador adopta ≤ ADOPCIONES_DIA y usa ≤ PAREJAS_DIA parejas al día; 1 puntaje por competencia cada 10 min
 
 const HOJAS = {
-  Jugadores: ['id', 'apodo', 'mascota', 'especie', 'etapa', 'sexo', 'genes', 'accesorios', 'visto', 'pendiente'],
+  Jugadores: ['id', 'apodo', 'mascota', 'especie', 'etapa', 'sexo', 'genes', 'accesorios', 'visto', 'pendiente', 'limites', 'creado'],
   Adopciones: ['oferta', 'dueno', 'duenoApodo', 'mascotaId', 'nombre', 'especie', 'sexo', 'genes', 'precio', 'fecha', 'estado', 'adoptante'],
   Parejas: ['anuncio', 'dueno', 'duenoApodo', 'mascotaId', 'nombre', 'especie', 'sexo', 'genes', 'tarifa', 'fecha', 'usos', 'activo'],
   Puntajes: ['id', 'apodo', 'competencia', 'puntaje', 'estrellas', 'mascota', 'especie', 'fecha'],
   Regalos: ['regalo', 'para', 'monedas', 'estrellas', 'objeto', 'cantidad', 'mensaje', 'activo', 'entregados'],
+  Eventos: ['fecha', 'dia', 'id', 'version', 'evento', 'dato'],
 };
 // Columnas de ids: se guardan como texto para que Sheets no las convierta en números
-const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'] };
+const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'], Eventos: ['B', 'C', 'D'] };
+const PRECIO_MAX = 220;      // máximo legítimo del juego ≈ 197 (bebé perfecto y muy bello)
+const TARIFA_MIN = 50, TARIFA_MAX = 200;
+const INGRESO_MAX_DIA = 600; // monedas al día que un dueño puede cobrar de otros jugadores
+const ADOPCIONES_DIA = 3, PAREJAS_DIA = 5;
+const PUNTAJE_CADA_MS = 10 * 60 * 1000;
+const EVENTOS_MAX = 40;      // eventos por sincronización
 const MIN_PARQUE = 30; // minutos que un jugador cuenta como "en el parque" tras su última conexión
 
 // ---------- Utilidades de hojas ----------
@@ -41,10 +54,24 @@ function hoja_(nombre) {
   return h;
 }
 
-/** Crea todas las pestañas si faltan (se llama al conectar). También puedes ejecutarla a mano. */
+/** Crea todas las pestañas si faltan y completa cabeceras nuevas (se llama al conectar). También puedes ejecutarla a mano. */
 function prepararHojas() {
-  Object.keys(HOJAS).forEach(hoja_);
+  Object.keys(HOJAS).forEach((nombre) => {
+    const h = hoja_(nombre);
+    const cols = HOJAS[nombre];
+    if (h.getLastColumn && h.getLastColumn() < cols.length) h.getRange(1, 1, 1, cols.length).setValues([cols]);
+  });
 }
+function hoy_() { return Utilities.formatDate(new Date(), 'GMT', 'yyyy-MM-dd'); }
+/** Contadores diarios del jugador (se guardan en la columna "limites" de Jugadores). */
+function limites_(j) {
+  let l = {};
+  try { l = JSON.parse(j.limites || '{}'); } catch (e) { l = {}; }
+  if (l.dia !== hoy_()) l = { dia: hoy_(), ingresos: 0, adopciones: 0, parejas: 0, puntajes: l.puntajes || {} };
+  if (!l.puntajes) l.puntajes = {};
+  return l;
+}
+function jugador_(id) { return filas_('Jugadores').find((f) => f.id === id); }
 function filas_(nombre) {
   const h = hoja_(nombre);
   const n = h.getLastRow() - 1;
@@ -115,11 +142,28 @@ function entregarRegalos_(id) {
   return lista;
 }
 
+/** Suma monedas que otro jugador le pagó, con el tope diario de ingresos. */
 function sumarPendiente_(idJugador, monedas) {
-  const j = filas_('Jugadores').find((f) => f.id === idJugador);
+  const j = jugador_(idJugador);
   if (!j) return;
-  j.pendiente = num_(j.pendiente, 1e9) + monedas;
+  const l = limites_(j);
+  const cobra = Math.max(0, Math.min(monedas, INGRESO_MAX_DIA - l.ingresos));
+  l.ingresos += cobra;
+  j.limites = JSON.stringify(l);
+  j.pendiente = num_(j.pendiente, 1e9) + cobra;
   escribir_('Jugadores', j);
+}
+
+/** Guarda los eventos anónimos de uso que manda el juego (como mucho EVENTOS_MAX por vez). */
+function guardarEventos_(id, version, eventos) {
+  if (!Array.isArray(eventos) || !eventos.length) return;
+  const ahora = Date.now();
+  const filas = eventos.slice(0, EVENTOS_MAX)
+    .filter((e) => e && typeof e.e === 'string' && Number(e.t) > ahora - 15 * 864e5 && Number(e.t) < ahora + 36e5)
+    .map((e) => { const f = new Date(Number(e.t)); return [f, Utilities.formatDate(f, 'GMT', 'yyyy-MM-dd'), id, texto_(version, 12), texto_(e.e, 24), texto_(e.x, 40)]; });
+  if (!filas.length) return;
+  const h = hoja_('Eventos');
+  h.getRange(h.getLastRow() + 1, 1, filas.length, HOJAS.Eventos.length).setValues(filas);
 }
 
 // ---------- Escritura (el juego hace POST) ----------
@@ -135,10 +179,11 @@ function doPost(e) {
       case 'sincronizar': {
         prepararHojas();
         const m = mascota_(d.mascota);
-        let j = filas_('Jugadores').find((f) => f.id === d.id) || { pendiente: 0 };
+        let j = jugador_(d.id) || { pendiente: 0, creado: new Date() };
         const monedas = num_(j.pendiente, 1e9);
         j = Object.assign(j, { id: d.id, apodo, mascota: m.nombre, especie: m.especie, etapa: m.etapa, sexo: m.sexo, genes: m.genes, accesorios: m.accesorios, visto: new Date(), pendiente: 0 });
         escribir_('Jugadores', j);
+        guardarEventos_(d.id, d.version, d.eventos);
         // Crías de este jugador que alguien adoptó desde la última vez
         const adoptadas = filas_('Adopciones').filter((f) => f.dueno === d.id && f.estado === 'adoptada');
         adoptadas.forEach((f) => { f.estado = 'entregada'; escribir_('Adopciones', f); });
@@ -147,7 +192,7 @@ function doPost(e) {
       case 'publicarAdopcion': {
         const m = mascota_(d.cria);
         const oferta = nuevoId_();
-        escribir_('Adopciones', { oferta, dueno: d.id, duenoApodo: apodo, mascotaId: texto_(d.cria && d.cria.mascotaId, 40), nombre: m.nombre, especie: m.especie, sexo: m.sexo, genes: m.genes, precio: num_(d.precio, 5000), fecha: new Date(), estado: 'disponible', adoptante: '' });
+        escribir_('Adopciones', { oferta, dueno: d.id, duenoApodo: apodo, mascotaId: texto_(d.cria && d.cria.mascotaId, 40), nombre: m.nombre, especie: m.especie, sexo: m.sexo, genes: m.genes, precio: Math.min(num_(d.precio, 5000), PRECIO_MAX), fecha: new Date(), estado: 'disponible', adoptante: '' });
         return responder_({ ok: true, oferta });
       }
       case 'retirarAdopcion': {
@@ -160,10 +205,17 @@ function doPost(e) {
       case 'adoptar': {
         const f = filas_('Adopciones').find((x) => x.oferta === d.oferta);
         if (!f || f.estado !== 'disponible' || f.dueno === d.id) return responder_({ ok: false, error: 'no-disponible' });
+        const yo = jugador_(d.id);
+        if (!yo) return responder_({ ok: false, error: 'sin-sincronizar' });
+        const l = limites_(yo);
+        if (l.adopciones >= ADOPCIONES_DIA) return responder_({ ok: false, error: 'limite' });
+        l.adopciones++;
+        yo.limites = JSON.stringify(l);
+        escribir_('Jugadores', yo);
         f.estado = 'adoptada';
         f.adoptante = d.id;
         escribir_('Adopciones', f);
-        sumarPendiente_(f.dueno, num_(f.precio, 5000));
+        sumarPendiente_(f.dueno, Math.min(num_(f.precio, 5000), PRECIO_MAX));
         return responder_({ ok: true, cria: { nombre: f.nombre, especie: f.especie, sexo: f.sexo, genes: JSON.parse(f.genes || '{}'), duenoApodo: f.duenoApodo } });
       }
       case 'publicarPareja': {
@@ -171,7 +223,7 @@ function doPost(e) {
         const mascotaId = texto_(d.mascota && d.mascota.mascotaId, 40);
         const previa = filas_('Parejas').find((x) => x.dueno === d.id && x.mascotaId === mascotaId);
         const anuncio = previa ? previa.anuncio : nuevoId_();
-        escribir_('Parejas', Object.assign(previa || { usos: 0 }, { anuncio, dueno: d.id, duenoApodo: apodo, mascotaId, nombre: m.nombre, especie: m.especie, sexo: m.sexo, genes: m.genes, tarifa: num_(d.tarifa, 2000), fecha: new Date(), activo: true }));
+        escribir_('Parejas', Object.assign(previa || { usos: 0 }, { anuncio, dueno: d.id, duenoApodo: apodo, mascotaId, nombre: m.nombre, especie: m.especie, sexo: m.sexo, genes: m.genes, tarifa: Math.max(TARIFA_MIN, Math.min(num_(d.tarifa, 2000), TARIFA_MAX)), fecha: new Date(), activo: true }));
         return responder_({ ok: true, anuncio });
       }
       case 'retirarPareja': {
@@ -182,14 +234,28 @@ function doPost(e) {
       case 'usarPareja': {
         const f = filas_('Parejas').find((x) => x.anuncio === d.anuncio);
         if (!f || f.activo !== true || f.dueno === d.id) return responder_({ ok: false, error: 'no-disponible' });
+        const yo = jugador_(d.id);
+        if (!yo) return responder_({ ok: false, error: 'sin-sincronizar' });
+        const l = limites_(yo);
+        if (l.parejas >= PAREJAS_DIA) return responder_({ ok: false, error: 'limite' });
+        l.parejas++;
+        yo.limites = JSON.stringify(l);
+        escribir_('Jugadores', yo);
         f.usos = num_(f.usos, 1e9) + 1;
         escribir_('Parejas', f);
-        sumarPendiente_(f.dueno, num_(f.tarifa, 2000));
+        sumarPendiente_(f.dueno, Math.max(TARIFA_MIN, Math.min(num_(f.tarifa, 2000), TARIFA_MAX)));
         return responder_({ ok: true, nombre: f.nombre, genes: JSON.parse(f.genes || '{}') });
       }
       case 'puntaje': {
         const comp = texto_(d.competencia, 30);
         const puntaje = num_(d.puntaje, 100);
+        const yo = jugador_(d.id);
+        if (!yo) return responder_({ ok: false, error: 'sin-sincronizar' });
+        const l = limites_(yo);
+        if (Date.now() - (l.puntajes[comp] || 0) < PUNTAJE_CADA_MS) return responder_({ ok: true });
+        l.puntajes[comp] = Date.now();
+        yo.limites = JSON.stringify(l);
+        escribir_('Jugadores', yo);
         const previa = filas_('Puntajes').find((x) => x.id === d.id && x.competencia === comp);
         if (previa && previa.puntaje >= puntaje) return responder_({ ok: true });
         escribir_('Puntajes', Object.assign(previa || {}, { id: d.id, apodo, competencia: comp, puntaje, estrellas: num_(d.estrellas, 5), mascota: texto_(d.mascota, 16), especie: ESPECIES.indexOf(d.especie) >= 0 ? d.especie : 'dog', fecha: new Date() }));
@@ -227,8 +293,40 @@ function doGet(e) {
       const lista = filas_('Jugadores').filter((f) => f.id !== yo && f.visto && new Date(f.visto).getTime() > limite);
       return responder_({ ok: true, lista: lista.slice(-15).map((f) => ({ id: String(f.id).slice(0, 8), apodo: f.apodo, nombre: f.mascota, especie: f.especie, etapa: f.etapa, sexo: f.sexo, genes: JSON.parse(f.genes || '{}'), accesorios: JSON.parse(f.accesorios || '{}') })) });
     }
+    case 'metricas':
+      return responder_(metricas_());
     default:
       prepararHojas();
-      return responder_({ ok: true, servidor: 'Patitas', version: 1 });
+      return responder_({ ok: true, servidor: 'Patitas', version: 2 });
   }
+}
+
+// ---------- Métricas (solo números agregados, sin IDs) ----------
+function metricas_() {
+  const ev = filas_('Eventos');
+  const dia = (x) => (x instanceof Date ? Utilities.formatDate(x, 'GMT', 'yyyy-MM-dd') : String(x).slice(0, 10));
+  const diaMas = (d, n) => Utilities.formatDate(new Date(new Date(d + 'T00:00:00Z').getTime() + n * 864e5), 'GMT', 'yyyy-MM-dd');
+  const activos = {};   // id -> Set de días con sesión
+  const conteo = {};    // evento -> veces
+  const detalle = {};   // evento:dato -> veces (etapas, minijuegos, compras...)
+  ev.forEach((f) => {
+    const d = dia(f.dia), e = String(f.evento);
+    conteo[e] = (conteo[e] || 0) + 1;
+    if (f.dato) detalle[e + ':' + f.dato] = (detalle[e + ':' + f.dato] || 0) + 1;
+    if (e === 'sesion') (activos[f.id] = activos[f.id] || {})[d] = true;
+  });
+  const hoy = hoy_();
+  const cohortes = {};
+  Object.keys(activos).forEach((id) => {
+    const dias = Object.keys(activos[id]).sort();
+    const c = (cohortes[dias[0]] = cohortes[dias[0]] || { nuevos: 0, d1: 0, d3: 0, d7: 0 });
+    c.nuevos++;
+    [1, 3, 7].forEach((n) => { if (activos[id][diaMas(dias[0], n)]) c['d' + n]++; });
+  });
+  const ultimos = {};
+  for (let i = 13; i >= 0; i--) {
+    const d = diaMas(hoy, -i);
+    ultimos[d] = Object.keys(activos).filter((id) => activos[id][d]).length;
+  }
+  return { ok: true, hoy, jugadores: Object.keys(activos).length, activosPorDia: ultimos, cohortes, eventos: conteo, detalle };
 }

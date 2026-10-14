@@ -3,7 +3,7 @@
  *
  * - Crea mascotas y respeta el límite de 3 activas (el resto va al rancho).
  * - Hace avanzar el tiempo: degradación de stats, crecimiento, escapes.
- * - Gestiona el escape (salud 0) y el rescate en un plazo de 48 h.
+ * - Gestiona el escape (salud 0, solo jugando): se puede buscar antes; a las 48 h vuelve sola.
  */
 import { Clock } from '../../core/Clock';
 import { EventBus, toast } from '../../core/EventBus';
@@ -195,10 +195,10 @@ export class PetManager {
       pet,
       'escape',
       '¡Se ha escapado!',
-      `A ${pet.name} le faltaron cuidados y se fue de casa. Tienes 48 horas para seguir su rastro.`,
+      `A ${pet.name} le faltaron cuidados y salió a buscar comida. Puedes buscarla, y si no, volverá sola en 48 horas.`,
     );
     EventBus.instance.emit('pet:escaped', { petId: pet.id });
-    toast(`¡${pet.name} se ha escapado! Tienes 48 h para encontrar su rastro.`, 'bad');
+    toast(`¡${pet.name} se ha escapado! Búscala o volverá sola en 48 h.`, 'bad');
   }
 
   /** Tiempo restante (ms) para recuperar a una mascota escapada. */
@@ -207,17 +207,12 @@ export class PetManager {
     return Math.max(0, pet.data.escapedAt + GameConfig.ESCAPE.recoveryWindowMs - now);
   }
 
+  /** Pasado el plazo, la mascota vuelve sola a casa (nunca se pierde). */
   private checkEscapeExpired(pet: Pet, now: number): void {
     if (this.escapeTimeLeft(pet, now) > 0) return;
-    AlbumSystem.instance.add(
-      pet,
-      'farewell',
-      'Una nueva familia',
-      `${pet.name} encontró una nueva familia que cuidará de su bienestar. Siempre te recordará.`,
-    );
-    const name = pet.name;
-    this.remove(pet.id);
-    EventBus.instance.emit('pet:lostForever', { petId: pet.id, name });
+    this.rescue(pet, false);
+    AlbumSystem.instance.add(pet, 'rescue', '¡Volvió sola a casa!', `${pet.name} encontró el camino de vuelta. Te echaba de menos.`);
+    EventBus.instance.emit('pet:returnedHome', { petId: pet.id, name: pet.name });
   }
 
   /** Probabilidad actual de encontrar a la mascota buscándola. */
@@ -246,7 +241,7 @@ export class PetManager {
   }
 
   /** Recupera a la mascota (por búsqueda o con el Collar GPS). */
-  rescue(pet: Pet): void {
+  rescue(pet: Pet, encontrada = true): void {
     if (!pet.isEscaped) return;
     // Si ya hay 3 en casa (no debería, porque la escapada ocupa hueco) iría al rancho
     pet.data.location = PetLocation.Active;
@@ -260,7 +255,7 @@ export class PetManager {
       energy: Math.max(pet.stats.energy, 50),
     });
     this.state.counters.rescues++;
-    AlbumSystem.instance.add(pet, 'rescue', '¡De vuelta a casa!', `Encontraste a ${pet.name}. ¡Qué alegría!`);
+    if (encontrada) AlbumSystem.instance.add(pet, 'rescue', '¡De vuelta a casa!', `Encontraste a ${pet.name}. ¡Qué alegría!`);
     EventBus.instance.emit('pet:rescued', { petId: pet.id });
     EventBus.instance.emit('pet:statsChanged', { petId: pet.id });
   }

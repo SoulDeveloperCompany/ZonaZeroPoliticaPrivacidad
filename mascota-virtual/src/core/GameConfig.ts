@@ -14,6 +14,11 @@ export const GameConfig = {
 
   /** Multiplicador de degradación mientras el jugador no está (más amable que en vivo). */
   OFFLINE_DECAY_FACTOR: 0.6,
+  /**
+   * Mientras el jugador no está, las necesidades no empeoran más allá de estos límites
+   * y la salud no baja: volver nunca es un castigo (ver docs/AUDITORIA-2026-10.md, C1).
+   */
+  OFFLINE_LIMITS: { maxHunger: 70, minHappiness: 30, minHygiene: 30, minEnergy: 15 },
 
   /**
    * Cambio de stats por DÍA de juego (= 1 hora real).

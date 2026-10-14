@@ -15,13 +15,17 @@ import type { GrowthStage, PetData } from '../pet/PetTypes';
 import { createDefaultStorage, type KeyValueStorage } from './Storage';
 
 const SAVE_KEY = 'mascota_virtual_save';
+/** Copia de respaldo: se escribe en cada guardado; si la principal se daña, se carga esta. */
+const BACKUP_KEY = 'mascota_virtual_save_bak';
+/** Si las dos están dañadas, se guarda aquí lo que había (por si se puede recuperar a mano). */
+const BROKEN_KEY = 'mascota_virtual_save_danada';
 
 /** Resumen de lo que pasó mientras el jugador no estaba. */
 export interface OfflineReport {
   offlineMs: number;
   stageUps: { name: string; stage: GrowthStage }[];
   escaped: string[];
-  lostForever: string[];
+  returned: string[];
   adopted: { name: string; coins: number }[];
   /** Cambio de stats importantes por mascota. */
   changes: { name: string; hunger: number; happiness: number; health: number }[];
@@ -36,6 +40,8 @@ export class SaveSystem {
   }
 
   storage: KeyValueStorage = createDefaultStorage();
+  /** Si la última carga tuvo que recuperar la partida: 'backup' (copia de respaldo) o 'none' (nada recuperable). */
+  recoveredFrom: 'backup' | 'none' | null = null;
 
   /** Convierte la partida a JSON. */
   serialize(now = Clock.now()): string {
@@ -46,7 +52,10 @@ export class SaveSystem {
 
   async save(): Promise<void> {
     const now = Clock.now();
-    await this.storage.set(SAVE_KEY, this.serialize(now));
+    const json = this.serialize(now);
+    // Primero el respaldo y luego la principal: si se corta a mitad, una de las dos queda entera
+    await this.storage.set(BACKUP_KEY, json);
+    await this.storage.set(SAVE_KEY, json);
     EventBus.instance.emit('save:saved', { at: now });
   }
 
@@ -56,6 +65,7 @@ export class SaveSystem {
 
   async deleteSave(): Promise<void> {
     await this.storage.remove(SAVE_KEY);
+    await this.storage.remove(BACKUP_KEY);
     GameState.instance.reset(Clock.now());
     PetManager.instance.rebuild();
   }
@@ -65,18 +75,38 @@ export class SaveSystem {
    * @returns el resumen offline, o null si no había partida
    */
   async load(): Promise<OfflineReport | null> {
+    this.recoveredFrom = null;
     const raw = await this.storage.get(SAVE_KEY);
-    if (!raw) {
+    const backup = await this.storage.get(BACKUP_KEY);
+    if (!raw && !backup) {
       GameState.instance.reset(Clock.now());
       PetManager.instance.rebuild();
       return null;
     }
-    return this.loadFromJson(raw);
+    for (const [json, origen] of [[raw, 'principal'], [backup, 'respaldo']] as const) {
+      if (!json) continue;
+      try {
+        const report = this.loadFromJson(json);
+        this.recoveredFrom = origen === 'respaldo' ? 'backup' : null;
+        if (this.recoveredFrom) EventBus.instance.emit('save:recovered', { from: 'backup' });
+        return report;
+      } catch (err) {
+        console.warn(`Partida ${origen} dañada`, err);
+      }
+    }
+    // Las dos dañadas: se conserva lo que había y se empieza de nuevo (nunca dejar el juego bloqueado)
+    await this.storage.set(BROKEN_KEY, raw ?? backup ?? '');
+    GameState.instance.reset(Clock.now());
+    PetManager.instance.rebuild();
+    this.recoveredFrom = 'none';
+    EventBus.instance.emit('save:recovered', { from: 'none' });
+    return null;
   }
 
   /** Carga desde un JSON (también sirve para importar copias de seguridad). */
   loadFromJson(json: string): OfflineReport {
     const parsed = JSON.parse(json) as Partial<GameData>;
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.pets)) throw new Error('Partida con formato no válido');
     const data = this.migrate(parsed);
     GameState.instance.load(data);
     PetManager.instance.rebuild();
@@ -90,7 +120,7 @@ export class SaveSystem {
 
   /** Simula el tiempo offline y recoge lo ocurrido para mostrárselo al jugador. */
   applyOffline(offlineMs: number): OfflineReport {
-    const report: OfflineReport = { offlineMs, stageUps: [], escaped: [], lostForever: [], adopted: [], changes: [] };
+    const report: OfflineReport = { offlineMs, stageUps: [], escaped: [], returned: [], adopted: [], changes: [] };
     if (offlineMs < 1000) return report;
 
     const before = new Map(
@@ -106,7 +136,7 @@ export class SaveSystem {
         const p = PetManager.instance.get(petId);
         if (p) report.escaped.push(p.name);
       }),
-      bus.on('pet:lostForever', ({ name }) => report.lostForever.push(name)),
+      bus.on('pet:returnedHome', ({ name }) => report.returned.push(name)),
       bus.on('adoption:completed', ({ petName, coins }) => report.adopted.push({ name: petName, coins })),
     ];
     try {
@@ -143,6 +173,7 @@ export class SaveSystem {
       wallet: { ...defaults.wallet, ...raw.wallet },
       daily: { ...defaults.daily, ...raw.daily },
       counters: { ...defaults.counters, ...raw.counters },
+      online: { ...defaults.online, ...raw.online },
       version: SAVE_VERSION,
     } as GameData;
 

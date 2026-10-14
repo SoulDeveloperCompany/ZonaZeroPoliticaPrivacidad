@@ -9,7 +9,7 @@ Leyenda de evidencia: **[D] demostrado** (simulado con el código real o leído 
 1. **El juego castiga la vida normal del jugador [D].** Una mascota perfectamente cuidada se escapa si no abres el juego ~20-24 h, y a las ~72 h **se pierde para siempre**. Es la causa de abandono más probable y contradice el principio de "volver por gusto, no por miedo".
 2. **El ciclo de vida dura 2 días [D].** 1 h real = 1 día: adulto a las 14 h, senior a las 45 h. Quien instala por la noche se despierta con un juvenil y nunca vio a su bebé. No hay nada que descubrir después de la primera semana.
 3. **El servidor permite fabricar monedas infinitas y falsear rankings [D]** (adopciones de hasta 5.000 🪙 que nadie paga; puntajes sin validar).
-4. **Una partida corrupta deja el juego en negro para siempre [D]** (sin try/catch al arrancar, sin copia de respaldo).
+4. **Una partida corrupta deja el juego inutilizable para siempre [D]** (muestra un error al arrancar y no hay copia de respaldo).
 5. **Las mascotas son bonitas pero no tienen personalidad ni memoria [D]**: comportamiento en reposo aleatorio, sin vínculo, sin sonido, sin tutorial, hitos mostrados como avisos de 2 s.
 6. **No se mide nada [D]**: sin métricas no se puede validar ninguna mejora ni ninguna monetización.
 
@@ -46,7 +46,7 @@ Simulación con el código real (perro bien cuidado: hambre 5, resto 100) y el j
 - No lo probé contra el servidor real (no ataco producción); está demostrado por lectura del código.
 
 ### C4. Partida corrupta = juego inutilizable [D]
-- `SaveSystem.loadFromJson` hace `JSON.parse` sin `try/catch` y `main.ts` no captura el error: la pantalla de carga no desaparece nunca.
+- `SaveSystem.load` no tiene alternativa si `JSON.parse` falla: `main.ts` muestra "Error al iniciar el juego" en cada arranque y no hay forma de seguir jugando.
 - Se guarda en una sola clave, sin copia de respaldo; un guardado interrumpido (batería, cierre forzado) puede dejarla truncada [H sobre la frecuencia].
 
 ### C5. Cero medición [D]
@@ -277,3 +277,10 @@ Cada etapa conserva lo que funciona, versiona el guardado si toca datos, añade 
 | **5. Comunidad y validación comercial** | P12 desafío semanal; experimentos de monetización (sección 6) | Apps Script, UI | D7 antes y después; tasa de aceptación | Según los datos |
 
 **Recomendación**: aprobar ya la **Etapa 0** (riesgo bajo, impacto máximo, no cambia el diseño) y la **Etapa 1**. Antes de la Etapa 2, decidir contigo el nuevo ritmo de vida, porque cambia la sensación del juego para los testers actuales.
+
+---
+
+## Estado de la implementación
+
+- **Etapa 0 (14-oct-2026) — hecha.** P1: `GameConfig.OFFLINE_LIMITS` + salud sin daño offline + la escapada vuelve sola a las 48 h (evento `pet:returnedHome`). P4: copia `mascota_virtual_save_bak`, carga con respaldo y aviso; si todo falla, se guarda `mascota_virtual_save_danada` y se puede jugar. P3: Apps Script v2 con topes (precio ≤ 220, tarifa 50-200, ingresos ≤ 600/día, 3 adopciones y 5 parejas al día, 1 puntaje cada 10 min, hay que haber sincronizado). Tests: 9 nuevos en `tests/systems.test.ts` y 9 casos nuevos en `scripts/test-server.mjs`.
+- **Etapa 1 — hecha.** P5: `Analytics.ts` (sesión, adopción inicial, etapa, minijuego, competencia, compra, cría, escape), enviados dentro de `sincronizar` (sin peticiones extra), pestaña `Eventos`, `?accion=metricas` solo con números agregados, interruptor en Ajustes, política de privacidad actualizada. Resumen: `npm run -s metricas`.

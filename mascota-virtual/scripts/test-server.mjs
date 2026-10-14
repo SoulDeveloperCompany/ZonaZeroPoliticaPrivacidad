@@ -23,7 +23,7 @@ const ctx = {
   SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: (n) => sheets[n] || null, insertSheet: (n) => (sheets[n] = makeSheet(n)) }) },
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) },
-  Utilities: { getUuid: () => crypto.randomUUID() },
+  Utilities: { getUuid: () => crypto.randomUUID(), formatDate: (d) => new Date(d).toISOString().slice(0, 10) },
   Date, JSON, Math, Number, String, Object,
 };
 vm.createContext(ctx);
@@ -72,5 +72,30 @@ const ga = post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet }).rega
 check(ga.length === 1 && ga[0].monedas === 500 && ga[0].objeto === 'acc_crown', 'A recibe el regalo para todos');
 check(post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet }).regalos.length === 0, 'A no lo recibe dos veces');
 check(post({ accion: 'sincronizar', id: B, apodo: 'y', mascota: pet }).regalos.length === 2, 'B recibe el de todos y el suyo');
+// ---------- Protección contra trampas ----------
+const hex = (c) => c.repeat(24);
+const S = hex('c'), C1 = hex('d'), C2 = hex('e'), C3 = hex('f'), C4 = hex('1'), X = hex('9');
+for (const id of [S, C1, C2, C3, C4]) post({ accion: 'sincronizar', id, apodo: 'p', mascota: pet });
+const caras = [1, 2, 3, 4].map((n) => post({ accion: 'publicarAdopcion', id: S, apodo: 's', cria: { ...pet, mascotaId: 'c' + n }, precio: 5000 }).oferta);
+check(sheets.Adopciones._rows.slice(1).filter((r) => r[1] === S).every((r) => r[8] === 220), 'precio de adopción limitado a 220');
+check(post({ accion: 'adoptar', id: X, apodo: 'x', oferta: caras[0] }).error === 'sin-sincronizar', 'un ID que nunca sincronizó no puede adoptar');
+[C1, C2, C3, C4].forEach((id, i) => post({ accion: 'adoptar', id, apodo: 'c', oferta: caras[i] }));
+check(post({ accion: 'sincronizar', id: S, apodo: 's', mascota: pet }).monedas === 600, 'un dueño cobra como mucho 600 al día de otros jugadores');
+const otras = [1, 2, 3].map((n) => post({ accion: 'publicarAdopcion', id: S, apodo: 's', cria: { ...pet, mascotaId: 'o' + n }, precio: 50 }).oferta);
+check(post({ accion: 'adoptar', id: C1, apodo: 'c', oferta: otras[0] }).ok && post({ accion: 'adoptar', id: C1, apodo: 'c', oferta: otras[1] }).ok, 'se pueden hacer 3 adopciones al día');
+check(post({ accion: 'adoptar', id: C1, apodo: 'c', oferta: otras[2] }).error === 'limite', 'la 4.ª adopción del día se rechaza');
+post({ accion: 'publicarPareja', id: S, apodo: 's', mascota: { ...pet, mascotaId: 'pp' }, tarifa: 5000 });
+check(sheets.Parejas._rows.slice(1).some((r) => r[1] === S && r[8] === 200), 'tarifa de pareja limitada a 200');
+post({ accion: 'puntaje', id: C2, apodo: 'c', competencia: 'beauty_contest', puntaje: 40, estrellas: 2, mascota: 'T', especie: 'dog' });
+post({ accion: 'puntaje', id: C2, apodo: 'c', competencia: 'beauty_contest', puntaje: 100, estrellas: 5, mascota: 'T', especie: 'dog' });
+check(get({ accion: 'ranking', competencia: 'beauty_contest', id: C2 }).lista[0].puntaje === 40, 'solo 1 puntaje por competencia cada 10 min');
+
+// ---------- Métricas ----------
+const t = Date.now();
+post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet, version: '1.2.0', eventos: [{ t, e: 'sesion' }, { t, e: 'etapa', x: 'adult' }, { t: t - 30 * 864e5, e: 'viejo' }] });
+post({ accion: 'sincronizar', id: B, apodo: 'y', mascota: pet, version: '1.2.0', eventos: [{ t, e: 'sesion' }] });
+const m = get({ accion: 'metricas' });
+check(m.ok && m.jugadores === 2 && m.eventos.sesion === 2 && m.detalle['etapa:adult'] === 1 && !m.eventos.viejo, 'métricas: guarda eventos válidos y descarta los antiguos');
+check(!JSON.stringify(m).includes(A), 'las métricas no exponen IDs de jugadores');
 console.log(ok ? '\nServidor OK' : '\nHAY FALLOS');
 process.exit(ok ? 0 : 1);

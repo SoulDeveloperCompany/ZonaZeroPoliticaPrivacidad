@@ -23,6 +23,7 @@ import { FamilyScreen } from './screens/FamilyScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { NewPetScreen } from './screens/NewPetScreen';
 import { ParkScreen } from './screens/ParkScreen';
+import { Analytics } from '../systems/online/Analytics';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -63,9 +64,8 @@ export class App {
     const bus = EventBus.instance;
     bus.on('economy:walletChanged', () => this.updateWallet());
     bus.on('ui:toast', ({ text, kind }) => showToast(text, kind));
-    bus.on('pet:lostForever', ({ name }) => {
-      showModal({ title: '👋 Una nueva familia', body: `<p>${esc(name)} no volvió a tiempo y ahora vive feliz con otra familia. Siempre estará en tu álbum.</p>` });
-      if (PetManager.instance.all().length === 0) this.showNewPet();
+    bus.on('pet:returnedHome', ({ name }) => {
+      showModal({ title: '🏠 ¡Volvió a casa!', body: `<p>${esc(name)} encontró el camino de vuelta. Llega con hambre y algo sucia: dale mimos.</p>` });
     });
     bus.on('online:gift', (g) => {
       const parts = [g.coins ? `+${g.coins} 🪙` : '', g.stars ? `+${g.stars} ⭐` : '', g.item ? `🎀 ${esc(g.item)}` : ''].filter(Boolean);
@@ -86,6 +86,14 @@ export class App {
     void GameManager.instance.syncOnline();
     this.setupBackButton();
 
+    const recuperada = SaveSystem.instance.recoveredFrom;
+    if (recuperada === 'backup') showToast('Tu partida se había dañado y se recuperó desde la copia de respaldo ✅', 'good');
+    if (recuperada === 'none') {
+      showModal({
+        title: '😿 No se pudo abrir tu partida',
+        body: '<p>Los datos guardados estaban dañados. Si tienes una copia de seguridad, puedes restaurarla en ⚙️ Ajustes › Restaurar copia.</p>',
+      });
+    }
     if (PetManager.instance.all().length === 0) {
       this.showNewPet();
     } else {
@@ -151,7 +159,7 @@ export class App {
     const lines: string[] = [];
     r.stageUps.forEach((s) => lines.push(`🌱 ${esc(s.name)} creció: ahora es ${DataRegistry.instance.getStage(s.stage).name}`));
     r.escaped.forEach((n) => lines.push(`💨 ¡${esc(n)} se escapó! Ve a Casa a seguir su rastro.`));
-    r.lostForever.forEach((n) => lines.push(`👋 ${esc(n)} se fue con otra familia.`));
+    r.returned.forEach((n) => lines.push(`🏠 ${esc(n)} volvió sola a casa.`));
     r.changes.forEach((c) => lines.push(`${esc(c.name)}: hambre ${c.hunger >= 0 ? '+' : ''}${c.hunger}, felicidad ${c.happiness >= 0 ? '+' : ''}${c.happiness}`));
     showModal({
       title: '🕰️ Mientras no estabas...',
@@ -171,6 +179,7 @@ export class App {
           <label class="field"><span>URL del Apps Script (/exec)</span>
             <input id="server-url" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(OnlineService.instance.url)}"/></label>
           <div class="field-row"><button class="btn btn-primary" data-act="connect">Conectar</button><span class="server-status">${serverStatus()}</span></div>
+          <label class="field-row hint"><input type="checkbox" data-act="analytics" ${Analytics.instance.enabled ? 'checked' : ''}> Enviar estadísticas anónimas de uso (ayudan a mejorar el juego)</label>
         </div>
         <p class="hint">Tu partida se guarda sola cada 10 segundos y al salir.</p>
         <div class="settings-list">
@@ -189,6 +198,10 @@ export class App {
         <p class="hint center">Patitas v0.1 · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
+        if (act === 'analytics') {
+          Analytics.instance.setEnabled((modal.body.querySelector('[data-act="analytics"]') as HTMLInputElement).checked);
+          return true;
+        }
         if (act === 'copy-id') {
           const id = OnlineService.instance.player.id;
           navigator.clipboard?.writeText(id).then(

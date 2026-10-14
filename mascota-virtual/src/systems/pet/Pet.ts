@@ -199,6 +199,7 @@ export class Pet {
     const factor = days * (ctx.offline ? cfg.OFFLINE_DECAY_FACTOR : 1);
     const sleepMul = this.data.sleeping ? cfg.SLEEP.decayMultiplier : 1;
     const s = this.data.stats;
+    const antes = { hunger: s.hunger, happiness: s.happiness, hygiene: s.hygiene, energy: s.energy };
 
     // Los seniors se cansan un poco antes
     const seniorEnergy = this.data.stage === GrowthStage.Senior ? 1.2 : 1;
@@ -223,6 +224,15 @@ export class Pet {
       this.sleepRoutine(days, ctx.now);
     }
 
+    if (ctx.offline) {
+      // Sin el jugador las necesidades no pasan de los límites (si ya estaban peor, no empeoran)
+      const lim = cfg.OFFLINE_LIMITS;
+      s.hunger = Math.min(s.hunger, Math.max(antes.hunger, lim.maxHunger));
+      s.happiness = Math.max(s.happiness, Math.min(antes.happiness, lim.minHappiness));
+      s.hygiene = Math.max(s.hygiene, Math.min(antes.hygiene, lim.minHygiene));
+      s.energy = Math.max(s.energy, Math.min(antes.energy, lim.minEnergy));
+    }
+
     // Salud: baja si está descuidada, se recupera poco a poco si todo va bien
     const h = cfg.HEALTH;
     let healthDelta = 0;
@@ -233,8 +243,9 @@ export class Pet {
     if (healthDelta === 0 && s.hunger < 60 && s.hygiene > 40 && s.happiness > 40) {
       healthDelta = h.regenPerDay;
     }
-    // El daño usa el factor offline; la regeneración usa los días reales
-    s.health = clamp(s.health + healthDelta * (healthDelta < 0 ? factor : days));
+    // Offline la salud nunca baja (solo se recupera); en vivo el daño se aplica normal
+    if (ctx.offline && healthDelta < 0) healthDelta = 0;
+    s.health = clamp(s.health + healthDelta * days);
   }
 
   /** ¿Tiene sueño? (la UI lo muestra con bostezos antes de que se duerma). */

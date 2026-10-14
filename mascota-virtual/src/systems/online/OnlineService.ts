@@ -11,6 +11,10 @@ import { GameState } from '../../core/GameState';
 import { OnlineConfig } from '../../core/OnlineConfig';
 import { pick } from '../../core/random';
 import type { Pet } from '../pet/Pet';
+import { Analytics } from './Analytics';
+
+/** Versión de la app (la pone vite.config.ts desde android/app/build.gradle). */
+const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'web';
 import type { AccessorySlot, PetGenes, Sex } from '../pet/PetTypes';
 
 /** Mascota tal como viaja al servidor. */
@@ -154,14 +158,16 @@ export class OnlineService {
       if (res && res.ok === false) throw new Error(res.error || 'rechazado');
       return res;
     } catch (err) {
-      if ((err as Error).message !== 'rechazado' && (err as Error).message !== 'no-disponible') this.status = 'error';
+      if (!['rechazado', 'no-disponible', 'limite', 'sin-sincronizar'].includes((err as Error).message)) this.status = 'error';
       throw err;
     }
   }
 
   /** Sube la mascota principal y recibe monedas pendientes y crías adoptadas. */
   async sync(main: Pet | undefined): Promise<{ monedas: number; adoptadas: { oferta: string; mascotaId: string; precio: number }[]; regalos: Gift[] }> {
-    const res = await this.call('POST', { accion: 'sincronizar', mascota: main ? OnlineService.toRemote(main) : null });
+    const eventos = Analytics.instance.pending();
+    const res = await this.call('POST', { accion: 'sincronizar', mascota: main ? OnlineService.toRemote(main) : null, version: APP_VERSION, eventos });
+    Analytics.instance.acknowledge(eventos.length);
     this.state.online.lastSync = Clock.now();
     return { monedas: Number(res.monedas) || 0, adoptadas: res.adoptadas ?? [], regalos: res.regalos ?? [] };
   }
@@ -211,6 +217,8 @@ export class OnlineService {
     const m = (err as Error)?.message;
     if (m === 'sin-servidor') return 'Conecta el servidor en ⚙️ Ajustes › Servidor';
     if (m === 'no-disponible') return 'Ya no está disponible';
+    if (m === 'limite') return 'Has llegado al límite de hoy (3 adopciones y 5 parejas al día)';
+    if (m === 'sin-sincronizar') return 'Conectando con el servidor… inténtalo en unos segundos';
     return 'Sin conexión con el servidor. Inténtalo más tarde';
   }
 }

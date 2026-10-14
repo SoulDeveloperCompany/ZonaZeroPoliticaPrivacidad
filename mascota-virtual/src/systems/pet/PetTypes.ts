@@ -75,7 +75,7 @@ export const STAT_LABELS: Record<PetStatKey, string> = {
 export enum PetLocation {
   Active = 'active', // en casa, se puede cuidar
   Ranch = 'ranch', // en el rancho: congelada, no se degrada
-  Escaped = 'escaped', // se escapó (salud 0): 48 h para recuperarla
+  Escaped = 'escaped', // se escapó (salud 0 jugando): se busca o vuelve sola a las 48 h
   Adoption = 'adoption', // publicada en adopción
 }
 

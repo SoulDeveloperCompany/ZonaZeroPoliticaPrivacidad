@@ -18,7 +18,9 @@ export interface GameEvents {
   'pet:stageChanged': { petId: string; from: GrowthStage; to: GrowthStage };
   'pet:escaped': { petId: string };
   'pet:rescued': { petId: string };
-  'pet:lostForever': { petId: string; name: string };
+  'pet:returnedHome': { petId: string; name: string };
+  /** Al cargar se usó la copia de respaldo ('backup') o no se pudo recuperar nada ('none'). */
+  'save:recovered': { from: 'backup' | 'none' };
   'pet:removed': { petId: string };
   'pet:locationChanged': { petId: string };
   'pet:sleepChanged': { petId: string; sleeping: boolean };

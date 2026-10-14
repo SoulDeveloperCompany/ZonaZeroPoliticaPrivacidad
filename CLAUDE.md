@@ -9,6 +9,7 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
   (`--archivos` lista los archivos con su tamaño y descripción). Luego lee solo ese rango.
 - Después de cambiar algo: `npm run -s revisar` (tipos, tests, Apps Script simulado, URL del servidor, versión,
   llave fuera de git). Imprime solo los problemas o «Todo bien».
+- Métricas de uso (anónimas, viajan en la sincronización): `npm run -s metricas` (activos por día, D1/D3/D7, eventos).
 - Ver el juego sin navegador: `npm run artifact` y luego `npm run -s shot -- <carpeta> new:dog:Toby close wait:4000 shot:casa`
   (pasos en `scripts/shot.mjs`; `--play` = capturas 1080x1920 para Play Store; nunca escribe en la hoja real).
   Unir capturas en una imagen: `python scripts/sheet.py hoja.png a.png b.png`.
@@ -56,6 +57,12 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
 - Textos neutros en género para la mascota ("tu mascota", "la/le"). El usuario prueba en el móvil (vertical).
 - El artefacto de Claude (https://claude.ai/artifact/GoqHK8f5ztPptcQw511WBu) no puede conectarse al servidor;
   el multijugador se prueba en GitHub Pages o en el APK.
+
+## Auditoría (docs/AUDITORIA-2026-10.md)
+- Etapa 0 hecha (14 oct 2026): sin castigo por ausencia (`GameConfig.OFFLINE_LIMITS`, la escapada vuelve sola a las 48 h),
+  guardado con respaldo (`mascota_virtual_save_bak`), servidor anti-fraude (topes de precio/tarifa/ingresos, límites diarios).
+- Etapa 1 hecha: estadísticas anónimas (`src/systems/online/Analytics.ts`, pestaña Eventos, `?accion=metricas`).
+- Siguiente: etapa 2 (ritmo de vida en días reales + tutorial + sonido) — decidir el ritmo con el usuario antes.
 
 ## Pendiente
 - Prueba cerrada «Alpha» enviada a revisión el 5 oct 2026 (v1.1.0, 178 países, listas «Testers Mi Zoológico» y

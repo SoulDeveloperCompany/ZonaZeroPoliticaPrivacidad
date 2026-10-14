@@ -14,6 +14,7 @@ import { MissionSystem } from '../systems/games/MissionSystem';
 import { PetManager } from '../systems/pet/PetManager';
 import { SaveSystem, type OfflineReport } from '../systems/save/SaveSystem';
 import { Clock } from './Clock';
+import { Analytics } from '../systems/online/Analytics';
 import { GameConfig } from './GameConfig';
 
 /** Si entre dos ticks pasa más que esto, se considera tiempo offline (app en segundo plano). */
@@ -37,14 +38,20 @@ export class GameManager {
   async start(): Promise<OfflineReport | null> {
     const report = await SaveSystem.instance.load();
     MissionSystem.instance.start();
+    Analytics.instance.start();
     this.lastTick = Clock.now();
     this.lastSave = this.lastTick;
     this.timer = setInterval(() => this.tick(), 1000);
 
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') void this.save();
-        else this.tick();
+        if (document.visibilityState === 'hidden') {
+          Analytics.instance.pause();
+          void this.save();
+        } else {
+          Analytics.instance.resume();
+          this.tick();
+        }
       });
       window.addEventListener('pagehide', () => void this.save());
     }
