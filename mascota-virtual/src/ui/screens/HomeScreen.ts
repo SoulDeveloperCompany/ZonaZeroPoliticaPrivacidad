@@ -35,6 +35,8 @@ import { openGames, openMissions } from '../GamesHub';
 import { openBath } from '../minigames/BathScene';
 import { MissionSystem } from '../../systems/games/MissionSystem';
 import { chooseName } from '../NameChooser';
+import { getTrait } from '../../data/traits';
+import { BondSystem } from '../../systems/pet/BondSystem';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -137,10 +139,53 @@ export class HomeScreen implements Screen {
       wrap.style.setProperty('--walk-x', `${Math.round(target)}px`);
       setTimeout(() => sprite.classList.remove('walking'), 1700);
     } else {
-      const cls = pet.isDrowsy ? 'idle-yawn' : (['idle-hop', 'idle-tilt', 'idle-look', 'idle-wiggle'] as const)[Math.floor(Math.random() * 4)];
+      const [cls, idea] = this.chooseIdle(pet);
       sprite.classList.add(cls);
+      if (idea) this.think(wrap, idea);
       setTimeout(() => sprite.classList.remove(cls), 1600);
     }
+  }
+
+  /**
+   * Elige qué hace en reposo según lo que necesita, su carácter y el vínculo (Auditoría P8):
+   * con hambre mira el cuenco, sucia pide baño, aburrida trae la pelota, con vínculo alto te busca.
+   */
+  private chooseIdle(pet: Pet): [string, string | null] {
+    if (pet.isDrowsy) return ['idle-yawn', '💤'];
+    const s = pet.stats;
+    const bond = pet.data.bond;
+    const prefs = new Set(pet.data.traits.flatMap((t) => getTrait(t)?.idle ?? []));
+    const options: [string, string | null, number][] = [
+      ['idle-hop', null, 1], ['idle-tilt', null, 1], ['idle-look', null, 1], ['idle-wiggle', null, 1],
+    ];
+    const add = (id: string, cls: string, idea: string | null, w: number) => options.push([cls, idea, w + (prefs.has(id) ? 1.5 : 0)]);
+    if (s.hunger > 60) add('bowl', 'idle-look', '🍖', 3);
+    else if (prefs.has('bowl') && s.hunger > 35) add('bowl', 'idle-look', '🍖', 0.5);
+    if (s.hygiene < 40) add('scratch', 'idle-wiggle', '🫧', 2);
+    if (s.happiness < 50 && s.energy > 30) add('ball', 'idle-hop', '🎾', 2);
+    else if (prefs.has('ball')) add('ball', 'idle-hop', '🎾', 0.3);
+    if (bond >= 20) add('love', 'idle-hop', '💕', bond / 40);
+    if (bond >= 60 && pet.data.tricks.length > 0) add('trick', 'anim-spin', '⭐', 1);
+    if (prefs.has('peek') && bond < 40) add('peek', 'idle-tilt', '👀', 0.5);
+    if (prefs.has('sniff')) add('sniff', 'idle-look', '🔍', 0.5);
+    if (prefs.has('pose') && Object.keys(pet.data.equipped).length > 0) add('pose', 'anim-pose', '✨', 0.5);
+    const total = options.reduce((t, o) => t + o[2], 0);
+    let r = Math.random() * total;
+    for (const [cls, idea, w] of options) {
+      r -= w;
+      if (r <= 0) return [cls, idea];
+    }
+    return ['idle-hop', null];
+  }
+
+  /** Bocadillo de pensamiento sobre la mascota durante un momento. */
+  private think(wrap: HTMLElement, idea: string): void {
+    wrap.querySelector('.thought')?.remove();
+    const t = document.createElement('span');
+    t.className = 'thought';
+    t.textContent = idea;
+    wrap.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
   }
 
   private get pet(): Pet | undefined {
@@ -200,6 +245,7 @@ export class HomeScreen implements Screen {
         <div class="stats-sheet ${this.statsOpen ? 'open' : ''}">
           <div class="sheet-head"><b>Estado de ${esc(pet.name)}</b><button class="icon-close" data-act="stats" aria-label="Cerrar">✕</button></div>
           <div class="stats">${STAT_KEYS.map((k) => statBarHTML(k, pet.stats[k])).join('')}</div>
+          <div class="bond-box"></div>
           <p class="stat-help-box" hidden></p>
           <p class="hint sheet-hint"></p>
         </div>
@@ -217,7 +263,7 @@ export class HomeScreen implements Screen {
     return `
       <div class="escaped-card card">
         <h3>💨 ¡${esc(pet.name)} se ha escapado!</h3>
-        <p>Le faltaron cuidados y se fue de casa. Si no das con su rastro a tiempo, se quedará con otra familia.</p>
+        <p>Le faltaron cuidados y salió a buscar comida. Puedes buscarla ahora; si no, volverá sola a casa.</p>
         <p class="escape-timer"></p>
         <button class="btn btn-primary" data-act="search">🔎 Buscar por el barrio</button>
         <button class="btn" data-act="gps">📡 Usar Collar GPS (${EconomySystem.instance.quantity('special_gps')})</button>
@@ -257,7 +303,7 @@ export class HomeScreen implements Screen {
     if (pet.isEscaped) {
       const left = PetManager.instance.escapeTimeLeft(pet);
       const timer = this.root.querySelector('.escape-timer');
-      if (timer) timer.textContent = `⏳ Tiempo restante: ${formatDuration(left)}`;
+      if (timer) timer.textContent = `🏠 Volverá sola en: ${formatDuration(left)}`;
       const hint = this.root.querySelector('.search-hint');
       if (hint) {
         const last = pet.data.lastSearchAt;
@@ -267,6 +313,21 @@ export class HomeScreen implements Screen {
           `Probabilidad de éxito: ${Math.round(PetManager.instance.searchChance(pet) * 100)}%`;
       }
       return;
+    }
+
+    // Vínculo y personalidad (Auditoría P8)
+    const bondBox = this.root.querySelector<HTMLElement>('.bond-box');
+    if (bondBox) {
+      const nivel = BondSystem.levelOf(pet.data.bond);
+      const fav = pet.data.favoriteFood ? DataRegistry.instance.getItem(pet.data.favoriteFood) : null;
+      const html = `<div class="bond-row"><span>💞 Vínculo</span><div class="bar"><div class="bar-fill bond-fill" style="width:${pet.data.bond.toFixed(0)}%"></div></div><b>${pet.data.bond.toFixed(0)}</b></div>
+        <p class="hint">${esc(BondSystem.textFor(nivel))} Sube con cuidados variados y nunca baja.</p>
+        <div class="trait-chips">${pet.data.traits.map((t) => getTrait(t)).filter(Boolean).map((t) => `<span class="trait-chip" title="${esc(t!.description)}">${t!.icon} ${esc(t!.name)}</span>`).join('')}
+        ${fav ? `<span class="trait-chip">${fav.icon} Le encanta: ${esc(fav.name)}</span>` : ''}</div>`;
+      if (bondBox.dataset.html !== html) {
+        bondBox.innerHTML = html;
+        bondBox.dataset.html = html;
+      }
     }
 
     // Stats (ocultos en la hoja inferior) y aviso si alguno está mal

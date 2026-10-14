@@ -19,6 +19,8 @@ import { PetManager } from '../src/systems/pet/PetManager';
 import { GrowthStage, PetLocation, Sex, Species } from '../src/systems/pet/PetTypes';
 import { SaveSystem } from '../src/systems/save/SaveSystem';
 import { Analytics } from '../src/systems/online/Analytics';
+import { BondSystem, BOND_PER_DAY } from '../src/systems/pet/BondSystem';
+import { TRAITS } from '../src/data/traits';
 import { MemoryStorage } from '../src/systems/save/Storage';
 
 const HOUR = 60 * 60 * 1000;
@@ -546,5 +548,81 @@ describe('Guardado robusto', () => {
     expect(PetManager.instance.all()).toHaveLength(0);
     expect(SaveSystem.instance.recoveredFrom).toBe('none');
     expect(await SaveSystem.instance.storage.get('mascota_virtual_save_danada')).toBe('basura');
+  });
+});
+
+describe('Vínculo, carácter y recuerdos', () => {
+  beforeEach(() => {
+    (BondSystem as unknown as { _instance: BondSystem | null })._instance = null;
+    BondSystem.instance.start();
+  });
+
+  it('cada mascota nace con 2 rasgos distintos de la lista', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Rex');
+    expect(pet.data.traits).toHaveLength(2);
+    expect(new Set(pet.data.traits).size).toBe(2);
+    expect(pet.data.traits.every((t) => TRAITS.some((x) => x.id === t))).toBe(true);
+  });
+
+  it('el vínculo premia la variedad, tiene tope diario y nunca baja', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Rex');
+    pet.data.traits = ['curioso', 'presumido']; // sin modificadores de vínculo
+    BondSystem.instance.onCare(pet, 'pet');
+    const tras1 = pet.data.bond;
+    BondSystem.instance.onCare(pet, 'pet');
+    expect(pet.data.bond - tras1).toBeLessThan(tras1); // repetir vale menos
+    for (let i = 0; i < 50; i++) BondSystem.instance.onCare(pet, ['pet', 'feed', 'bathe', 'play'][i % 4]);
+    expect(pet.data.bond).toBeCloseTo(BOND_PER_DAY, 5); // tope del día
+    advance(72 * HOUR, true);
+    expect(pet.data.bond).toBeCloseTo(BOND_PER_DAY, 5); // no baja por no entrar
+  });
+
+  it('al cruzar 20 de vínculo guarda el hito en el álbum y lo anuncia', () => {
+    const pet = PetManager.instance.createStarter(Species.Cat, 'Mia');
+    pet.data.traits = ['curioso', 'presumido'];
+    const hitos: number[] = [];
+    EventBus.instance.on('pet:bondMilestone', ({ level }) => hitos.push(level));
+    pet.data.bond = 19.9;
+    BondSystem.instance.gain(pet, 1);
+    expect(hitos).toEqual([20]);
+    expect(GameState.instance.data.album.some((m) => m.kind === 'bond')).toBe(true);
+  });
+
+  it('el carácter tímido gana vínculo más despacio y el cariñoso más rápido', () => {
+    const a = PetManager.instance.createStarter(Species.Dog, 'A');
+    a.data.traits = ['timido', 'curioso'];
+    BondSystem.instance.gain(a, 4);
+    const b = Pet.create({ name: 'B', speciesId: Species.Dog, now });
+    PetManager.instance.add(b, 'adopted');
+    b.data.traits = ['carinoso', 'curioso'];
+    BondSystem.instance.gain(b, 4);
+    expect(a.data.bond).toBeCloseTo(3, 5);
+    expect(b.data.bond).toBeCloseTo(5, 5);
+  });
+
+  it('las primeras veces y la comida favorita se guardan solas', () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Rex');
+    BondSystem.instance.onCare(pet, 'bathe');
+    BondSystem.instance.onCare(pet, 'bathe');
+    expect(GameState.instance.data.album.filter((m) => m.title === 'Su primer baño')).toHaveLength(1);
+    for (let i = 0; i < 5; i++) BondSystem.instance.onCare(pet, 'feed', 'food_fruit');
+    expect(pet.data.favoriteFood).toBe('food_fruit');
+  });
+
+  it('cumple meses cada 30 días de edad', () => {
+    PetManager.instance.createStarter(Species.Dog, 'Rex');
+    const cumple: number[] = [];
+    EventBus.instance.on('pet:birthday', ({ months }) => cumple.push(months));
+    advance(61 * 24 * HOUR, true);
+    expect(cumple).toEqual([1, 2]);
+    expect(GameState.instance.data.album.filter((m) => m.kind === 'birthday')).toHaveLength(2);
+  });
+
+  it('las partidas antiguas reciben rasgos y vínculo al cargarse', () => {
+    const p = Pet.create({ name: 'Vieja', speciesId: Species.Dog, now }).data as unknown as Record<string, unknown>;
+    for (const k of ['traits', 'bond', 'bondToday', 'firsts', 'foodCounts', 'favoriteFood', 'birthdayMonths', 'recentActions']) delete p[k];
+    const data = SaveSystem.instance.migrate({ ...GameState.instance.data, pets: [p as never] });
+    expect(data.pets[0].traits).toHaveLength(2);
+    expect(data.pets[0].bond).toBe(0);
   });
 });

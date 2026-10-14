@@ -97,6 +97,17 @@ export class GrowthSystem {
       pet.data.growthBoostUntil = null;
     }
     this.checkStage(pet);
+    this.checkBirthday(pet);
+  }
+
+  /** Cumpleaños cada 30 días de edad: recuerdo en el álbum y celebración en la UI. */
+  private checkBirthday(pet: Pet): void {
+    const meses = Math.floor(pet.data.ageDays / 30 + 1e-6);
+    if (meses <= (pet.data.birthdayMonths ?? 0)) return;
+    pet.data.birthdayMonths = meses;
+    const txt = meses === 1 ? '1 mes' : `${meses} meses`;
+    AlbumSystem.instance.add(pet, 'birthday', `🎂 ¡${txt} juntos!`, `${pet.name} cumple ${txt}. ¡Qué rápido crece!`);
+    EventBus.instance.emit('pet:birthday', { petId: pet.id, months: meses });
   }
 
   /** Acelerador: suma días de edad al instante. */

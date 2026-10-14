@@ -27,6 +27,7 @@ import { Analytics } from '../systems/online/Analytics';
 import { celebrate, celebrateStage } from './Celebration';
 import { feedback, play, type SoundId } from './Feedback';
 import { Tutorial } from './Tutorial';
+import { BondSystem } from '../systems/pet/BondSystem';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -87,6 +88,14 @@ export class App {
       const pet = PetManager.instance.get(petId);
       if (pet) celebrateStage(pet, from, to);
     });
+    bus.on('pet:bondMilestone', ({ petId, level }) => {
+      const pet = PetManager.instance.get(petId);
+      if (pet) celebrate({ pet, title: `💞 Vínculo ${level} con ${esc(pet.name)}`, text: esc(BondSystem.textFor(level)) });
+    });
+    bus.on('pet:birthday', ({ petId, months }) => {
+      const pet = PetManager.instance.get(petId);
+      if (pet) celebrate({ pet, title: `🎂 ¡Feliz cumpleaños, ${esc(pet.name)}!`, text: `Hoy cumple ${months === 1 ? '1 mes' : `${months} meses`} contigo.` });
+    });
     bus.on('breeding:born', ({ babyId }) => {
       const baby = PetManager.instance.get(babyId);
       if (baby) celebrate({ pet: baby, title: `🐣 ¡Ha nacido ${esc(baby.name)}!`, text: 'Una nueva vida en la familia. Mira de quién ha heredado los colores.' });
@@ -122,6 +131,7 @@ export class App {
     } else {
       this.go('home');
       if (report) this.showOfflineReport(report);
+      this.greet(report);
       this.offerDaily();
       Tutorial.maybeStart();
     }
@@ -141,6 +151,17 @@ export class App {
     this.current.mount(screenRoot);
     this.currentId = entry.id;
     this.shell.querySelectorAll<HTMLElement>('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.id === entry.id));
+  }
+
+  /** Al volver tras unas horas, la mascota te recibe (según el vínculo). Nunca reproches. */
+  private greet(report: OfflineReport | null): void {
+    const pet = PetManager.instance.selected;
+    if (!pet || !report || report.offlineMs < 3 * 60 * 60 * 1000 || pet.data.bond < 20) return;
+    const frases = pet.data.bond >= 60 ? [`💞 ¡${pet.name} corre a recibirte!`, `💞 ${pet.name} te estaba esperando en la puerta`] : [`👀 ${pet.name} te ha reconocido y mueve la colita`];
+    setTimeout(() => {
+      showToast(frases[Math.floor(Math.random() * frases.length)], 'good');
+      play('happy');
+    }, 900);
   }
 
   private showNewPet(): void {

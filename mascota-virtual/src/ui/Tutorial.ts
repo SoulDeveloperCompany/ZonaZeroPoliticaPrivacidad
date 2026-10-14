@@ -40,7 +40,7 @@ export class Tutorial {
     Analytics.instance.track('tutorial_paso', String(step));
     const pet = PetManager.instance.selected!;
     const textos: Record<number, [string, string]> = {
-      1: [`🍖 ${esc(pet.name)} tiene hambre. Toca <b>Alimentar</b> y arrastra la comida hasta su boca.`, '.dock-btn[data-id="feed"]'],
+      1: [`🍖 Dale su primera comida a ${esc(pet.name)}: toca <b>Alimentar</b> y arrastra la comida hasta su boca.`, '.dock-btn[data-id="feed"]'],
       2: ['✋ ¡Muy bien! Ahora <b>acaríciale</b>: pasa el dedo por encima.', '.pet-sprite'],
     };
     const [html, target] = textos[step];

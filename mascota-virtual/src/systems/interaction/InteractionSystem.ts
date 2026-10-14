@@ -17,6 +17,7 @@ import { getFurnitureBonus } from '../economy/furniture';
 import { GrowthSystem } from '../growth/GrowthSystem';
 import { PetManager } from '../pet/PetManager';
 import type { Pet } from '../pet/Pet';
+import { getTrait } from '../../data/traits';
 import { AlbumSystem } from '../save/AlbumSystem';
 
 export type InteractionFailReason =
@@ -107,6 +108,10 @@ export class InteractionSystem {
           effects.happiness = (effects.happiness ?? 0) + 8;
           message = '¡Su comida favorita! 😍';
         }
+        if (pet.data.favoriteFood === item.id) {
+          effects.happiness = (effects.happiness ?? 0) + 5;
+          message = '¡Su comida preferida de siempre! 😋';
+        }
         deltas = pet.applyDeltas(effects);
         break;
       }
@@ -140,6 +145,14 @@ export class InteractionSystem {
         deltas = pet.applyDeltas(action.effects);
     }
 
+    // Carácter: pequeño extra según sus rasgos (p. ej. el juguetón disfruta más jugando)
+    for (const t of pet.data.traits ?? []) {
+      const extra = getTrait(t)?.actionBonus?.[action.id];
+      if (!extra) continue;
+      const d2 = pet.applyDeltas(extra);
+      for (const [k, v] of Object.entries(d2)) deltas[k as keyof StatDeltas] = (deltas[k as keyof StatDeltas] ?? 0) + (v ?? 0);
+    }
+
     pet.setCooldown(action.id, now, action.cooldownMs);
     GameState.instance.data.counters.actions++;
 
@@ -157,6 +170,7 @@ export class InteractionSystem {
       deltas,
       message,
       coinsFound,
+      itemId: action.id === 'feed' ? (opts.itemId ?? 'food_basic') : undefined,
     });
     EventBus.instance.emit('pet:statsChanged', { petId: pet.id });
     return { ok: true, deltas, message, coinsFound, trickLearned };

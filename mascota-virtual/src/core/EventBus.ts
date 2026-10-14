@@ -19,6 +19,8 @@ export interface GameEvents {
   'pet:escaped': { petId: string };
   'pet:rescued': { petId: string };
   'pet:returnedHome': { petId: string; name: string };
+  'pet:bondMilestone': { petId: string; level: number };
+  'pet:birthday': { petId: string; months: number };
   /** Al cargar se usó la copia de respaldo ('backup') o no se pudo recuperar nada ('none'). */
   'save:recovered': { from: 'backup' | 'none' };
   'pet:removed': { petId: string };
@@ -34,6 +36,8 @@ export interface GameEvents {
     deltas: Partial<Record<PetStatKey, number>>;
     message?: string;
     coinsFound?: number;
+    /** Comida usada (solo en 'feed'). */
+    itemId?: string;
   };
   'trick:learned': { petId: string; trickId: string };
 

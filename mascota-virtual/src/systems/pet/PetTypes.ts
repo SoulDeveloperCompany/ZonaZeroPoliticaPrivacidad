@@ -152,4 +152,19 @@ export interface PetData {
   /** Estadísticas de competición. */
   competitions: number;
   bestRating: number;
+
+  /** Personalidad y vínculo (ver data/traits.ts y systems/pet/BondSystem.ts). */
+  traits: string[];
+  /** Vínculo con el dueño 0-100 (nunca baja). */
+  bond: number;
+  bondToday: { day: string; gained: number };
+  /** Últimas acciones (para premiar la variedad). */
+  recentActions: string[];
+  /** Primeras veces ya guardadas en el álbum. */
+  firsts: string[];
+  /** Veces que ha comido cada comida (la más dada se vuelve favorita). */
+  foodCounts: Record<string, number>;
+  favoriteFood: string | null;
+  /** Meses de edad ya celebrados (cumpleaños cada 30 días). */
+  birthdayMonths: number;
 }

@@ -582,3 +582,15 @@ small { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) {
   .celebration-pet, .confetti span, .coach-target { animation: none; }
 }
+
+/* ---------- Vínculo, carácter y pensamientos (Auditoría P8) ---------- */
+.bond-box { margin-top: 8px; }
+.bond-row { display: flex; align-items: center; gap: 8px; font-weight: 800; }
+.bond-row .bar { flex: 1; height: 10px; background: #f1e3d3; border-radius: 999px; overflow: hidden; }
+.bond-fill { background: linear-gradient(90deg, #ff9eb0, #ff6f91); }
+.trait-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.trait-chip { background: #fff4e6; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 700; }
+.thought { position: absolute; left: calc(50% + var(--walk-x, 0px) + 40px); bottom: 62%; font-size: 26px; background: #fff; border-radius: 50%;
+  width: 44px; height: 44px; display: grid; place-items: center; box-shadow: var(--shadow); animation: thoughtPop 2.2s ease-out forwards; pointer-events: none; }
+@keyframes thoughtPop { 0% { transform: scale(0); opacity: 0; } 12% { transform: scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .thought { animation: none; } }

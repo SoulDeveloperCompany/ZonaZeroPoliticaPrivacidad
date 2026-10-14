@@ -9,6 +9,7 @@ import { GameConfig } from '../../core/GameConfig';
 import { clamp, pick, randInt, rng, uid } from '../../core/random';
 import { DataRegistry } from '../../data/DataRegistry';
 import type { FurnitureBonus, SpeciesDefinition, StatDeltas } from '../../data/types';
+import { TRAITS, getTrait } from '../../data/traits';
 import {
   GrowthStage,
   PetLocation,
@@ -100,8 +101,23 @@ export class Pet {
       partnerListingId: null,
       competitions: 0,
       bestRating: 0,
+      traits: Pet.randomTraits(),
+      bond: 0,
+      bondToday: { day: '', gained: 0 },
+      recentActions: [],
+      firsts: [],
+      foodCounts: {},
+      favoriteFood: null,
+      birthdayMonths: 0,
     };
     return new Pet(data);
+  }
+
+  /** Dos rasgos de personalidad distintos al azar. */
+  static randomTraits(): string[] {
+    const ids = TRAITS.map((t) => t.id);
+    const a = pick(ids);
+    return [a, pick(ids.filter((x) => x !== a))];
   }
 
   // ---------- Accesos rápidos ----------
@@ -195,7 +211,10 @@ export class Pet {
   simulateDecay(days: number, ctx: DecayContext): void {
     if (!this.isActive || days <= 0) return;
     const cfg = GameConfig;
-    const mods = this.species.decayModifiers ?? {};
+    const mods: Partial<Record<string, number>> = { ...(this.species.decayModifiers ?? {}) };
+    for (const t of this.data.traits ?? []) {
+      for (const [k, v] of Object.entries(getTrait(t)?.decay ?? {})) mods[k] = (mods[k] ?? 1) * (v ?? 1);
+    }
     const factor = days * (ctx.offline ? cfg.OFFLINE_DECAY_FACTOR : 1);
     const sleepMul = this.data.sleeping ? cfg.SLEEP.decayMultiplier : 1;
     const s = this.data.stats;

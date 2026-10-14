@@ -15,6 +15,7 @@ import { PetManager } from '../systems/pet/PetManager';
 import { SaveSystem, type OfflineReport } from '../systems/save/SaveSystem';
 import { Clock } from './Clock';
 import { Analytics } from '../systems/online/Analytics';
+import { BondSystem } from '../systems/pet/BondSystem';
 import { GameConfig } from './GameConfig';
 
 /** Si entre dos ticks pasa más que esto, se considera tiempo offline (app en segundo plano). */
@@ -39,6 +40,7 @@ export class GameManager {
     const report = await SaveSystem.instance.load();
     MissionSystem.instance.start();
     Analytics.instance.start();
+    BondSystem.instance.start();
     this.lastTick = Clock.now();
     this.lastSave = this.lastTick;
     this.timer = setInterval(() => this.tick(), 1000);
