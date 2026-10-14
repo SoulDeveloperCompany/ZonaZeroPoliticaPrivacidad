@@ -109,6 +109,9 @@ export const GameConfig = {
     minHealth: 60,
     npcPartnerFee: 120,
     mutationChance: 0.1,
+    /** Probabilidad de que la cría salga con un color RARO (más si un padre ya lo tiene). */
+    rareChance: 0.03,
+    rareChanceParent: 0.08,
   },
 
   /** Adopción pública: tiempo (ms reales) hasta que alguien adopta la cría publicada. */

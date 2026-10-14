@@ -594,3 +594,10 @@ small { color: var(--muted); }
   width: 44px; height: 44px; display: grid; place-items: center; box-shadow: var(--shadow); animation: thoughtPop 2.2s ease-out forwards; pointer-events: none; }
 @keyframes thoughtPop { 0% { transform: scale(0); opacity: 0; } 12% { transform: scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .thought { animation: none; } }
+
+/* ---------- Libro de pelajes (Auditoría P11) ---------- */
+.col-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1e3d3; }
+.col-swatches { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; border: 2px solid rgba(58,42,32,0.15); }
+.swatch.missing { background: #f1e6da; color: var(--muted); font-weight: 900; }
+.swatch.rare { border-color: #e9c46a; box-shadow: 0 0 0 2px #fff3c4; }

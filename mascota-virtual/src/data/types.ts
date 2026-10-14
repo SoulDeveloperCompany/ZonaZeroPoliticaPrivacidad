@@ -31,6 +31,8 @@ export interface SpeciesDefinition {
   description: string;
   /** Colores principales posibles al nacer. */
   primaryPalette: string[];
+  /** Colores RAROS: solo pueden salir criando (ver BreedingSystem.inheritGenes y la colección). */
+  rarePalette?: string[];
   /** Colores secundarios (manchas, panza, caparazón...). */
   secondaryPalette: string[];
   patterns: CoatPattern[];
@@ -46,7 +48,7 @@ export interface SpeciesDefinition {
   nameSuggestions: string[];
 }
 
-export type ItemCategory = 'food' | 'accessory' | 'furniture' | 'accelerator' | 'medicine' | 'special';
+export type ItemCategory = 'food' | 'accessory' | 'furniture' | 'accelerator' | 'medicine' | 'special' | 'decor';
 
 export interface Price {
   coins?: number;
@@ -90,6 +92,8 @@ export interface ItemDefinition {
   minStage?: GrowthStage;
   /** Comida gratis e infinita (para que nunca te quedes sin poder alimentar). */
   free?: boolean;
+  /** Decoración de la casa: hueco y colores del tema (ver data/decor.ts). */
+  decor?: { slot: 'pared' | 'suelo' | 'alfombra'; colors: string[] };
 }
 
 export type MinigameType = 'agility' | 'beauty' | 'tricks';

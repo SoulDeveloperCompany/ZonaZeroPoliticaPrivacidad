@@ -12,6 +12,7 @@ import { GrowthStage, PetLocation } from '../../systems/pet/PetTypes';
 import { petSVG, sexIcon, stageName, type Screen } from '../common';
 import { esc, onAction, setHTML } from '../dom';
 import { chooseName } from '../NameChooser';
+import { CollectionSystem, SPECIES_COMPLETE_STARS } from '../../systems/breeding/CollectionSystem';
 import { confirmModal, showModal, showToast } from '../Overlay';
 
 export class FamilyScreen implements Screen {
@@ -102,6 +103,13 @@ export class FamilyScreen implements Screen {
         <h3>🏠 En casa (${home.length}/${GameConfig.MAX_ACTIVE_PETS})</h3>
         ${home.map((p) => this.petRow(p, p.isEscaped ? '<small>💨 Escapado</small>' : `<button class="btn btn-sm" data-act="toRanch" data-id="${p.id}">🐎 Al rancho</button><button class="btn btn-sm" data-act="list" data-id="${p.id}">🤝 Adopción</button>`)).join('')}
       </div>
+      ${(() => {
+        const col = CollectionSystem.instance;
+        const { found, total } = col.progress();
+        return `<div class="card"><h3>📖 Libro de pelajes <small>${found}/${total}</small></h3>
+          <p class="hint">${col.title()} · Cada especie tiene 2 colores ✨ raros que solo salen criando. Completa una especie: +${SPECIES_COMPLETE_STARS} ⭐.</p>
+          <button class="btn btn-sm" data-act="collection">Ver colección</button></div>`;
+      })()}
       <div class="card family-breed">
         <h3>💞 Crianza</h3>
         <p class="hint">Solo adultos, misma especie y sexo opuesto. La pareja puede ser tuya o de otro jugador. La cría hereda color, patrón, tamaño y stats.</p>
@@ -138,6 +146,14 @@ export class FamilyScreen implements Screen {
       }
     };
     switch (act) {
+      case 'collection':
+        showModal({
+          title: '📖 Libro de pelajes',
+          body: CollectionSystem.instance.rows().map((r) => `<div class="col-row"><b>${r.icon} ${esc(r.name)}</b><div class="col-swatches">${r.colors
+            .map((c) => `<span class="swatch ${c.found ? '' : 'missing'} ${c.rare ? 'rare' : ''}" style="${c.found ? `background:${c.color}` : ''}" title="${c.rare ? 'Raro' : ''}">${c.found ? (c.rare ? '✨' : '') : '?'}</span>`)
+            .join('')}</div></div>`).join('') + '<p class="hint">Consigue colores nuevos adoptando, criando y en el centro de adopción.</p>',
+        });
+        return;
       case 'toRanch':
         pm.moveToRanch(id);
         break;

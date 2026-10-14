@@ -17,6 +17,7 @@ import { ITEMS } from './items';
 import { COMPETITIONS } from './competitions';
 import { STAGES } from './stages';
 import { ACTIONS } from './actions';
+import { DECOR_ITEMS } from './decor';
 import type { GrowthStage } from '../systems/pet/PetTypes';
 
 export class DataRegistry {
@@ -36,6 +37,7 @@ export class DataRegistry {
   private constructor() {
     SPECIES.forEach((s) => this.registerSpecies(s));
     ITEMS.forEach((i) => this.registerItem(i));
+    DECOR_ITEMS.forEach((i) => this.registerItem(i));
     COMPETITIONS.forEach((c) => this.registerCompetition(c));
     ACTIONS.forEach((a) => this.registerAction(a));
     STAGES.forEach((s) => this.registerStage(s));

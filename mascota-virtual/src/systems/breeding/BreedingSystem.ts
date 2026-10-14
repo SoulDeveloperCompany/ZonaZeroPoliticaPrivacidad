@@ -101,8 +101,11 @@ export class BreedingSystem {
     const species = DataRegistry.instance.getSpecies(speciesId);
     const mutate = GameConfig.BREEDING.mutationChance;
     const fromParent = <T>(x: T, y: T) => (rng() < 0.5 ? x : y);
+    const rares = species.rarePalette ?? [];
+    const padreRaro = rares.includes(a.primaryColor) || rares.includes(b.primaryColor);
+    const raro = rares.length > 0 && chance(padreRaro ? GameConfig.BREEDING.rareChanceParent : GameConfig.BREEDING.rareChance);
     return {
-      primaryColor: chance(mutate) ? pick(species.primaryPalette) : fromParent(a.primaryColor, b.primaryColor),
+      primaryColor: raro ? pick(rares) : chance(mutate) ? pick(species.primaryPalette) : fromParent(a.primaryColor, b.primaryColor),
       secondaryColor: chance(mutate) ? pick(species.secondaryPalette) : fromParent(a.secondaryColor, b.secondaryColor),
       pattern: chance(mutate) ? pick(species.patterns) : fromParent(a.pattern, b.pattern),
       size: Math.round(clamp((a.size + b.size) / 2 + (rng() - 0.5) * 0.1, 0.85, 1.15) * 100) / 100,

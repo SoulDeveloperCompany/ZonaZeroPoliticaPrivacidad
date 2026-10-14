@@ -5,6 +5,7 @@
 import { GameConfig } from './GameConfig';
 import type { PetData } from '../systems/pet/PetTypes';
 import type { MemoryEntry } from '../systems/save/AlbumSystem';
+import { DEFAULT_DECOR } from '../data/decor';
 import type { MissionProgress } from '../systems/games/MissionSystem';
 
 /** 2: la edad pasa a días reales (ver SaveSystem.migrate). */
@@ -27,6 +28,12 @@ export interface GameData {
   competitionCooldowns: Record<string, number>;
   counters: { actions: number; competitions: number; births: number; rescues: number };
   tutorialDone: boolean;
+  /** Decoración puesta y temas comprados (ver data/decor.ts). */
+  decor: { pared: string; suelo: string; alfombra: string };
+  decorOwned: string[];
+  /** Libro de pelajes: colores descubiertos por especie y especies ya premiadas. */
+  collection: Record<string, string[]>;
+  collectionRewards: string[];
   /** Preferencias del jugador (Ajustes). */
   settings: { sound: boolean; haptics: boolean };
   /** Récord por minijuego. */
@@ -65,6 +72,10 @@ export function createEmptyGameData(now: number): GameData {
     counters: { actions: 0, competitions: 0, births: 0, rescues: 0 },
     tutorialDone: false,
     settings: { sound: true, haptics: true },
+    decor: { ...DEFAULT_DECOR },
+    decorOwned: Object.values(DEFAULT_DECOR),
+    collection: {},
+    collectionRewards: [],
     gameRecords: {},
     gamesToday: { day: '', coins: {} },
     vitaminsToday: { day: '', count: 0 },

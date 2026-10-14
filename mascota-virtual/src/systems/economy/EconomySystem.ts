@@ -104,7 +104,32 @@ export class EconomySystem {
     const item = DataRegistry.instance.getItem(itemId);
     if (item.category === 'furniture') return this.state.furniture.includes(itemId);
     if (item.category === 'accessory') return this.quantity(itemId) > 0;
+    if (item.category === 'decor') return this.state.decorOwned.includes(itemId);
     return false;
+  }
+
+  /** Pone un tema de decoración ya comprado. */
+  applyDecor(itemId: string): boolean {
+    const item = DataRegistry.instance.getItem(itemId);
+    if (!item.decor || !this.state.decorOwned.includes(itemId)) return false;
+    this.state.decor[item.decor.slot] = itemId;
+    EventBus.instance.emit('decor:changed', { itemId });
+    return true;
+  }
+
+  /** Precio de venta: la mitad de lo que costó en monedas (lo que se compró con ⭐ no se vende). */
+  sellPrice(itemId: string): number {
+    const item = DataRegistry.instance.getItem(itemId);
+    const consumible = ['food', 'medicine', 'accelerator', 'special'].includes(item.category);
+    return consumible && !item.free && item.price.coins && !item.price.stars ? Math.floor(item.price.coins / 2) : 0;
+  }
+
+  /** Vende 1 unidad de lo que sobra en la mochila. */
+  sell(itemId: string): number {
+    const precio = this.sellPrice(itemId);
+    if (precio <= 0 || !this.consume(itemId)) return 0;
+    this.addCoins(precio);
+    return precio;
   }
 
   // ---------- Tienda ----------
@@ -122,6 +147,9 @@ export class EconomySystem {
     if (!this.pay(item.price)) return { ok: false, reason: 'funds' };
     if (item.category === 'furniture') {
       this.state.furniture.push(itemId); // los muebles se colocan solos en casa
+    } else if (item.category === 'decor') {
+      this.state.decorOwned.push(itemId);
+      this.applyDecor(itemId); // se pone al comprarla
     } else {
       this.addItem(itemId);
     }

@@ -96,6 +96,10 @@ export class App {
       const pet = PetManager.instance.get(petId);
       if (pet) celebrate({ pet, title: `🎂 ¡Feliz cumpleaños, ${esc(pet.name)}!`, text: `Hoy cumple ${months === 1 ? '1 mes' : `${months} meses`} contigo.` });
     });
+    bus.on('collection:new', ({ petId, rare }) => {
+      const pet = PetManager.instance.get(petId);
+      if (pet && rare) celebrate({ pet, title: '✨ ¡Pelaje raro!', text: `${esc(pet.name)} tiene un color que muy pocos consiguen. Ya está en tu libro de pelajes.` });
+    });
     bus.on('breeding:born', ({ babyId }) => {
       const baby = PetManager.instance.get(babyId);
       if (baby) celebrate({ pet: baby, title: `🐣 ¡Ha nacido ${esc(baby.name)}!`, text: 'Una nueva vida en la familia. Mira de quién ha heredado los colores.' });

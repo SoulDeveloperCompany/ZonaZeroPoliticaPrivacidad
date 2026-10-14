@@ -45,6 +45,8 @@ export interface GameEvents {
   'economy:walletChanged': { coins: number; stars: number };
   'economy:inventoryChanged': { itemId: string; quantity: number };
   'economy:purchase': { itemId: string };
+  'decor:changed': { itemId: string };
+  'collection:new': { petId: string; rare: boolean };
 
   // --- Competencias ---
   'competition:finished': {

@@ -20,7 +20,8 @@
     "publicar": "powershell -NoProfile -ExecutionPolicy Bypass -File herramientas/compilar-android.ps1 -Release",
     "graficos": "node herramientas/graficos.mjs",
     "android:iconos": "npx @capacitor/assets generate --android --assetPath recursos --iconBackgroundColor #ffb26b --splashBackgroundColor #fdf3e7 --splashBackgroundColorDark #1f1a16",
-    "metricas": "node herramientas/metricas.mjs"
+    "metricas": "node herramientas/metricas.mjs",
+    "economia": "vitest run tests/economia.test.ts --reporter=dot && node -e \"console.log(require('fs').readFileSync('artifact/economia.json','utf8'))\""
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

@@ -21,6 +21,8 @@ import { SaveSystem } from '../src/systems/save/SaveSystem';
 import { Analytics } from '../src/systems/online/Analytics';
 import { BondSystem, BOND_PER_DAY } from '../src/systems/pet/BondSystem';
 import { TRAITS } from '../src/data/traits';
+import { CollectionSystem, SPECIES_COMPLETE_STARS } from '../src/systems/breeding/CollectionSystem';
+import { DataRegistry } from '../src/data/DataRegistry';
 import { MemoryStorage } from '../src/systems/save/Storage';
 
 const HOUR = 60 * 60 * 1000;
@@ -624,5 +626,60 @@ describe('Vínculo, carácter y recuerdos', () => {
     const data = SaveSystem.instance.migrate({ ...GameState.instance.data, pets: [p as never] });
     expect(data.pets[0].traits).toHaveLength(2);
     expect(data.pets[0].bond).toBe(0);
+  });
+});
+
+describe('Economía: decoración, venta y colección', () => {
+  it('compra un tema de decoración, se pone solo y se puede volver al anterior', () => {
+    EconomySystem.instance.addCoins(1000);
+    expect(GameState.instance.data.decor.pared).toBe('pared_clasica');
+    expect(EconomySystem.instance.buy('pared_menta').ok).toBe(true);
+    expect(GameState.instance.data.decor.pared).toBe('pared_menta');
+    expect(EconomySystem.instance.buy('pared_menta').ok).toBe(false); // no se compra dos veces
+    expect(EconomySystem.instance.applyDecor('pared_clasica')).toBe(true);
+    expect(EconomySystem.instance.applyDecor('pared_galaxia')).toBe(false); // no comprada
+  });
+
+  it('vende lo que sobra a mitad de precio (lo de estrellas y lo gratis no se vende)', () => {
+    EconomySystem.instance.addItem('food_meat', 2);
+    const antes = EconomySystem.instance.coins;
+    expect(EconomySystem.instance.sell('food_meat')).toBe(15);
+    expect(EconomySystem.instance.coins).toBe(antes + 15);
+    expect(EconomySystem.instance.quantity('food_meat')).toBe(1);
+    EconomySystem.instance.addItem('acc_growth_clock', 1);
+    expect(EconomySystem.instance.sell('acc_growth_clock')).toBe(0);
+    expect(EconomySystem.instance.sellPrice('food_basic')).toBe(0);
+  });
+
+  it('las crías pueden salir con colores raros (más a menudo si un padre ya es raro)', () => {
+    const bs = BreedingSystem.instance;
+    const sp = DataRegistry.instance.getSpecies(Species.Dog);
+    const normal = { ...Pet.randomGenes(sp), primaryColor: sp.primaryPalette[0] };
+    const raro = { ...normal, primaryColor: sp.rarePalette![0] };
+    let sinPadreRaro = 0;
+    let conPadreRaro = 0;
+    for (let i = 0; i < 4000; i++) {
+      if (sp.rarePalette!.includes(bs.inheritGenes(normal, normal, Species.Dog).primaryColor)) sinPadreRaro++;
+      const g = bs.inheritGenes(raro, normal, Species.Dog).primaryColor;
+      if (sp.rarePalette!.includes(g) && g !== raro.primaryColor) conPadreRaro++;
+    }
+    expect(sinPadreRaro / 4000).toBeGreaterThan(0.015);
+    expect(sinPadreRaro / 4000).toBeLessThan(0.05);
+    expect(conPadreRaro).toBeGreaterThan(sinPadreRaro * 0.8); // el padre raro sube la probabilidad
+  });
+
+  it('el libro de pelajes apunta colores nuevos y premia completar una especie', () => {
+    (CollectionSystem as unknown as { _instance: CollectionSystem | null })._instance = null;
+    CollectionSystem.instance.start();
+    const sp = DataRegistry.instance.getSpecies(Species.Cat);
+    const estrellas = EconomySystem.instance.stars;
+    for (const color of [...sp.primaryPalette, ...sp.rarePalette!]) {
+      const p = Pet.create({ name: 'C', speciesId: Species.Cat, now, genes: { ...Pet.randomGenes(sp), primaryColor: color } });
+      PetManager.instance.add(p, 'adopted');
+    }
+    const fila = CollectionSystem.instance.rows().find((r) => r.speciesId === Species.Cat)!;
+    expect(fila.colors.every((c) => c.found)).toBe(true);
+    expect(EconomySystem.instance.stars).toBe(estrellas + SPECIES_COMPLETE_STARS);
+    expect(GameState.instance.data.album.some((m) => m.title.includes('raro'))).toBe(true);
   });
 });

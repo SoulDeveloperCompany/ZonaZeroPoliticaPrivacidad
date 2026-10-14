@@ -7,7 +7,18 @@
  * alfombra quedan siempre abajo, sea cual sea la forma de la pantalla.
  */
 
-export function renderRoomSVG(night: boolean): string {
+/** Colores del tema puesto (por defecto, los de siempre). */
+export interface RoomColors { pared: string[]; suelo: string[]; alfombra: string[] }
+const DEFAULT_COLORS: RoomColors = {
+  pared: ['#ffe7cc', '#ffdfbf', '#ffc69a', '#ffb8b8', '#f0b98a'],
+  suelo: ['#d9a066', '#d39858', '#b97c43'],
+  alfombra: ['#ff9f9f', '#ffb7b0', '#ffe0d6'],
+};
+
+export function renderRoomSVG(night: boolean, colors: RoomColors = DEFAULT_COLORS): string {
+  const [pBase, pRaya, pPunto1, pPunto2, zocalo] = colors.pared;
+  const [sTabla, sTabla2, sLinea] = colors.suelo;
+  const [aBorde, aCentro, aCostura] = colors.alfombra;
   const sky = night
     ? `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f2a55"/><stop offset="1" stop-color="#46508a"/></linearGradient>`
     : `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc8ff"/><stop offset="1" stop-color="#d6f0ff"/></linearGradient>`;
@@ -25,15 +36,15 @@ export function renderRoomSVG(night: boolean): string {
   <defs>
     ${sky}
     <pattern id="wallpaper" width="40" height="40" patternUnits="userSpaceOnUse">
-      <rect width="40" height="40" fill="#ffe7cc"/>
-      <rect width="20" height="40" fill="#ffdfbf"/>
-      <circle cx="10" cy="10" r="2.6" fill="#ffc69a"/><circle cx="30" cy="30" r="2.6" fill="#ffb8b8"/>
+      <rect width="40" height="40" fill="${pBase}"/>
+      <rect width="20" height="40" fill="${pRaya}"/>
+      <circle cx="10" cy="10" r="2.6" fill="${pPunto1}"/><circle cx="30" cy="30" r="2.6" fill="${pPunto2}"/>
     </pattern>
     <pattern id="planks" width="120" height="44" patternUnits="userSpaceOnUse">
-      <rect width="120" height="44" fill="#d9a066"/>
-      <rect y="0" width="120" height="22" fill="#d39858"/>
-      <path d="M0 22 H120 M0 44 H120" stroke="#b97c43" stroke-width="2"/>
-      <path d="M40 0 V22 M100 22 V44" stroke="#b97c43" stroke-width="2"/>
+      <rect width="120" height="44" fill="${sTabla}"/>
+      <rect y="0" width="120" height="22" fill="${sTabla2}"/>
+      <path d="M0 22 H120 M0 44 H120" stroke="${sLinea}" stroke-width="2"/>
+      <path d="M40 0 V22 M100 22 V44" stroke="${sLinea}" stroke-width="2"/>
     </pattern>
     <radialGradient id="glow"><stop offset="0" stop-color="#ffe9a8" stop-opacity="0.9"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient>
   </defs>
@@ -64,7 +75,7 @@ export function renderRoomSVG(night: boolean): string {
   <path d="M152 262 Q138 236 146 222 Q154 240 152 262 Q156 232 172 226 Q168 248 152 262" fill="#5cb85c"/>
 
   <!-- Zócalo y suelo de madera -->
-  <rect y="470" width="400" height="14" fill="#f0b98a"/>
+  <rect y="470" width="400" height="14" fill="${zocalo}"/>
   <rect y="484" width="400" height="216" fill="url(#planks)"/>
 
   <!-- Lámpara de pie -->
@@ -74,9 +85,9 @@ export function renderRoomSVG(night: boolean): string {
   <path d="M332 404 L382 404 L372 366 L342 366 Z" fill="${night ? '#ffe28a' : '#ffd1a8'}" stroke="#c98a5a" stroke-width="3"/>
 
   <!-- Alfombra redonda donde está la mascota -->
-  <ellipse cx="200" cy="604" rx="160" ry="44" fill="#ff9f9f"/>
-  <ellipse cx="200" cy="604" rx="132" ry="34" fill="none" stroke="#ffe0d6" stroke-width="6" stroke-dasharray="14 10"/>
-  <ellipse cx="200" cy="604" rx="96" ry="22" fill="#ffb7b0"/>
+  <ellipse cx="200" cy="604" rx="160" ry="44" fill="${aBorde}"/>
+  <ellipse cx="200" cy="604" rx="132" ry="34" fill="none" stroke="${aCostura}" stroke-width="6" stroke-dasharray="14 10"/>
+  <ellipse cx="200" cy="604" rx="96" ry="22" fill="${aCentro}"/>
 
   ${night ? '<rect width="400" height="700" fill="#141c3c" opacity="0.32"/>' : ''}
 </svg>`;

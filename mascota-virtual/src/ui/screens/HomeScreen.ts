@@ -73,8 +73,8 @@ export class HomeScreen implements Screen {
   id = 'home';
   private root!: HTMLElement;
   private lastSprite = '';
-  private lastNight: boolean | null = null;
   private statsOpen = false;
+  private lastRoom = '';
   private offs: (() => void)[] = [];
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -205,7 +205,7 @@ export class HomeScreen implements Screen {
         : '';
 
     this.lastSprite = '';
-    this.lastNight = null;
+    this.lastRoom = '';
 
     if (!pet) {
       this.root.innerHTML = `<div class="home"><div class="room-bg">${renderRoomSVG(false)}</div>
@@ -279,11 +279,14 @@ export class HomeScreen implements Screen {
 
     // Fondo de día o de noche según si duerme
     const night = pet.data.sleeping;
-    if (night !== this.lastNight) {
+    const deco = GameState.instance.data.decor;
+    const roomKey = `${night}|${deco.pared}|${deco.suelo}|${deco.alfombra}`;
+    if (roomKey !== this.lastRoom) {
       const bg = this.root.querySelector<HTMLElement>('.room-bg');
-      if (bg) bg.innerHTML = renderRoomSVG(night);
+      const col = (id: string) => DataRegistry.instance.getItem(id).decor!.colors;
+      if (bg) bg.innerHTML = renderRoomSVG(night, { pared: col(deco.pared), suelo: col(deco.suelo), alfombra: col(deco.alfombra) });
       this.root.querySelector('.home')?.classList.toggle('night', night);
-      this.lastNight = night;
+      this.lastRoom = roomKey;
     }
 
     const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
@@ -634,7 +637,14 @@ export function openBackpack(pet: Pet): void {
           return `<button class="item-card ${on ? 'equipped' : ''}" data-act="equip" data-id="${item.id}">
             ${itemIcon(item.id)}<b>${esc(item.name)}</b><small>${on ? '✔ Puesto' : `+${item.beautyBonus ?? 0} ✨`}</small></button>`;
         })
-        .join('')}</div>` : '<p class="hint">Aún no tienes accesorios.</p>'}`;
+        .join('')}</div>` : '<p class="hint">Aún no tienes accesorios.</p>'}
+      ${(() => {
+        const vendibles = [...eco.inventoryBy('food'), ...usable].filter(({ item }) => eco.sellPrice(item.id) > 0);
+        return vendibles.length ? `<h4>💰 Vender lo que sobra</h4><p class="hint">Te dan la mitad de lo que costó.</p><div class="item-grid">${vendibles
+          .map(({ item, quantity }) => `<button class="item-card" data-act="sell" data-id="${item.id}">
+            ${itemIcon(item.id)}<b>${esc(item.name)}</b><small>x${quantity} · vender +${eco.sellPrice(item.id)} 🪙</small></button>`)
+          .join('')}</div>` : '';
+      })()}`;
   };
   showModal({
     title: `🎒 Mochila de ${esc(pet.name)}`,
@@ -646,6 +656,9 @@ export function openBackpack(pet: Pet): void {
       if (act === 'use') {
         const r = eco.useItem(pet.id, id);
         showToast(r.message, r.ok ? 'good' : 'bad');
+      } else if (act === 'sell') {
+        const n = eco.sell(id);
+        if (n) showToast(`Vendido: +${n} 🪙`, 'good');
       } else if (act === 'equip') {
         if (Object.values(pet.data.equipped).includes(id)) eco.unequip(pet.id, id);
         else eco.equip(pet.id, id);

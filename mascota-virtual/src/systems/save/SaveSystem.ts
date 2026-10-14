@@ -175,6 +175,7 @@ export class SaveSystem {
       counters: { ...defaults.counters, ...raw.counters },
       online: { ...defaults.online, ...raw.online },
       settings: { ...defaults.settings, ...raw.settings },
+      decor: { ...defaults.decor, ...raw.decor },
       version: SAVE_VERSION,
     } as GameData;
 
