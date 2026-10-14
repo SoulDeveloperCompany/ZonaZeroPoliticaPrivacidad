@@ -58,15 +58,24 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
 - El artefacto de Claude (https://claude.ai/artifact/GoqHK8f5ztPptcQw511WBu) no puede conectarse al servidor;
   el multijugador se prueba en GitHub Pages o en el APK.
 
-## Auditoría (docs/AUDITORIA-2026-10.md)
-- Etapa 0 hecha (14 oct 2026): sin castigo por ausencia (`GameConfig.OFFLINE_LIMITS`, la escapada vuelve sola a las 48 h),
-  guardado con respaldo (`mascota_virtual_save_bak`), servidor anti-fraude (topes de precio/tarifa/ingresos, límites diarios).
-- Etapa 1 hecha: estadísticas anónimas (`src/systems/online/Analytics.ts`, pestaña Eventos, `?accion=metricas`).
-- Siguiente: etapa 2 (ritmo de vida en días reales + tutorial + sonido) — decidir el ritmo con el usuario antes.
+## Auditoría (docs/AUDITORIA-2026-10.md) — etapas 0-5 hechas (14 oct 2026)
+- 0: sin castigo por ausencia (`GameConfig.OFFLINE_LIMITS`; la escapada vuelve sola a las 48 h), guardado con respaldo,
+  servidor anti-fraude. 1: estadísticas anónimas (`Analytics.ts`, `npm run -s metricas`).
+- 2: edad en DÍAS REALES (bebé 0-1, cachorro 1-3, juvenil 3-7, adulto 7-60, senior 60+ y cría); necesidades por hora
+  (hambre +5/h…); migración v1→v2 (`migrateAgeV1toV2`); tutorial (`ui/Tutorial.ts`); celebraciones (`ui/Celebration.ts`);
+  sonido WebAudio + `@capacitor/haptics` (`ui/Feedback.ts`), desactivables en Ajustes.
+- 3: rasgos (`data/traits.ts`), vínculo 0-100 que nunca baja (`BondSystem.ts`, tope 10/día), conducta en reposo con
+  contexto y pensamientos (`HomeScreen.chooseIdle`), primeras veces, comida favorita, cumpleaños cada 30 días.
+- 4: decoración (`data/decor.ts`, pestaña Decoración, `RoomScene` con colores), vender a mitad de precio, colores raros
+  al criar y libro de pelajes (`CollectionSystem.ts`). Balance comprobado con `npm run -s economia`.
+- 5: desafío semanal entre todos y golosinas en el parque (`Community.ts`, Apps Script v3, pestaña Comunidad),
+  encuesta de apoyo única (`ui/Survey.ts`, evento `encuesta_apoyo`). No hay pagos: se decide con los datos.
 
 ## Pendiente
 - Prueba cerrada «Alpha» enviada a revisión el 5 oct 2026 (v1.1.0, 178 países, listas «Testers Mi Zoológico» y
   «Yo interna», como Zoo). Cuando la aprueben: 12 testers × 14 días y luego pedir acceso a producción.
   Las próximas versiones se suben a ese mismo canal (Prueba cerrada › Crear nueva versión).
 - Añadir como colaborador en GitHub a `carloseduardobonillapalma-lgtm` (Settings › Collaborators).
-- Ideas: notificaciones locales en Android, sonidos, nombre definitivo.
+- Compilar y subir la v1.2.0 (incluye etapas 0-5) y enviar el cambio de Seguridad de los datos con ella.
+- Más accesorios (hay 10; necesitan dibujo SVG), probar sonido y vibración en un móvil real.
+- Ideas: notificaciones locales opcionales, música ambiente, nombre definitivo.
