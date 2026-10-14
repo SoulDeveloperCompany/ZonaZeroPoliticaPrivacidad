@@ -23,6 +23,7 @@ import { BondSystem, BOND_PER_DAY } from '../src/systems/pet/BondSystem';
 import { TRAITS } from '../src/data/traits';
 import { CollectionSystem, SPECIES_COMPLETE_STARS } from '../src/systems/breeding/CollectionSystem';
 import { DataRegistry } from '../src/data/DataRegistry';
+import { Community } from '../src/systems/online/Community';
 import { MemoryStorage } from '../src/systems/save/Storage';
 
 const HOUR = 60 * 60 * 1000;
@@ -681,5 +682,41 @@ describe('Economía: decoración, venta y colección', () => {
     expect(fila.colors.every((c) => c.found)).toBe(true);
     expect(EconomySystem.instance.stars).toBe(estrellas + SPECIES_COMPLETE_STARS);
     expect(GameState.instance.data.album.some((m) => m.title.includes('raro'))).toBe(true);
+  });
+});
+
+describe('Comunidad: desafío semanal', () => {
+  beforeEach(() => {
+    (Community as unknown as { _instance: Community | null })._instance = null;
+    Community.instance.start();
+  });
+
+  it('cuenta los cuidados como aportes, los envía y deja recoger el premio si se cumple entre todos', async () => {
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    pet.stats.hunger = 60;
+    InteractionSystem.instance.perform(pet.id, 'feed');
+    InteractionSystem.instance.perform(pet.id, 'pet');
+    const enviados: Record<string, unknown>[] = [];
+    let progreso = 10;
+    OnlineService.instance.setUrl('https://script.google.com/macros/s/TEST/exec');
+    OnlineService.instance.transport = async (_m, _u, payload) => {
+      enviados.push(payload);
+      return { ok: true, monedas: 0, adoptadas: [], regalos: [], buzon: [{ de: 'Bigote', monedas: 15 }],
+        desafio: { semana: '2900', accion: 'feed', titulo: 'Entre todos, 20 comidas', objetivo: 20, progreso, premio: { monedas: 100, estrellas: 1 } } };
+    };
+    const monedas = EconomySystem.instance.coins;
+    await GameManager.instance.syncOnline();
+    expect(enviados[0].aportes).toEqual({ feed: 1, pet: 1 });
+    expect(GameState.instance.data.community.pending).toEqual({});
+    expect(EconomySystem.instance.coins).toBe(monedas + 15); // golosina del buzón
+    expect(Community.instance.myContribution).toBe(1);
+    expect(Community.instance.canClaim()).toBe(false); // aún no se llegó al objetivo
+    progreso = 25;
+    await GameManager.instance.syncOnline();
+    expect(Community.instance.canClaim()).toBe(true);
+    const estrellas = EconomySystem.instance.stars;
+    expect(Community.instance.claim()).toBe(true);
+    expect(EconomySystem.instance.stars).toBe(estrellas + 1);
+    expect(Community.instance.claim()).toBe(false); // solo una vez
   });
 });

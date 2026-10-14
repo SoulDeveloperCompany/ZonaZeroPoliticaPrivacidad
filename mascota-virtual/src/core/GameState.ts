@@ -6,6 +6,7 @@ import { GameConfig } from './GameConfig';
 import type { PetData } from '../systems/pet/PetTypes';
 import type { MemoryEntry } from '../systems/save/AlbumSystem';
 import { DEFAULT_DECOR } from '../data/decor';
+import type { Challenge } from '../systems/online/Community';
 import type { MissionProgress } from '../systems/games/MissionSystem';
 
 /** 2: la edad pasa a días reales (ver SaveSystem.migrate). */
@@ -34,6 +35,10 @@ export interface GameData {
   /** Libro de pelajes: colores descubiertos por especie y especies ya premiadas. */
   collection: Record<string, string[]>;
   collectionRewards: string[];
+  /** Desafío semanal entre todos (ver systems/online/Community.ts). */
+  community: { pending: Record<string, number>; week: string; mine: number; claimed: string[]; last: Challenge | null };
+  /** Encuesta de apoyo ya respondida (experimento de monetización, ver ui/Survey.ts). */
+  surveyDone: boolean;
   /** Preferencias del jugador (Ajustes). */
   settings: { sound: boolean; haptics: boolean };
   /** Récord por minijuego. */
@@ -76,6 +81,8 @@ export function createEmptyGameData(now: number): GameData {
     decorOwned: Object.values(DEFAULT_DECOR),
     collection: {},
     collectionRewards: [],
+    community: { pending: {}, week: '', mine: 0, claimed: [], last: null },
+    surveyDone: false,
     gameRecords: {},
     gamesToday: { day: '', coins: {} },
     vitaminsToday: { day: '', count: 0 },

@@ -97,5 +97,21 @@ post({ accion: 'sincronizar', id: B, apodo: 'y', mascota: pet, version: '1.2.0',
 const m = get({ accion: 'metricas' });
 check(m.ok && m.jugadores === 2 && m.eventos.sesion === 2 && m.detalle['etapa:adult'] === 1 && !m.eventos.viejo, 'métricas: guarda eventos válidos y descarta los antiguos');
 check(!JSON.stringify(m).includes(A), 'las métricas no exponen IDs de jugadores');
+// ---------- Desafío semanal y regalos en el parque ----------
+const sem = Math.floor(Date.now() / (7 * 864e5));
+const acciones = ['bathe', 'play', 'walk', 'pet', 'feed'];
+const accionSemana = acciones[sem % acciones.length];
+const r1 = post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet, aportes: { [accionSemana]: 30, otra: 99 } });
+check(r1.desafio && r1.desafio.accion === accionSemana && r1.desafio.progreso === 30, 'el desafío de la semana suma lo aportado');
+const r2 = post({ accion: 'sincronizar', id: B, apodo: 'y', mascota: pet, aportes: { [accionSemana]: 500 } });
+check(r2.desafio.progreso === 80, 'cada sincronización aporta como mucho 50');
+check(post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) }).ok, 'B deja una golosina a la mascota de A');
+const r3 = post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet });
+check(r3.buzon.length === 1 && r3.buzon[0].monedas === 15 && r3.buzon[0].de === 'Bigote', 'A recibe la golosina en su buzón');
+check(post({ accion: 'sincronizar', id: A, apodo: 'x', mascota: pet }).buzon.length === 0, 'el buzón se vacía al entregarse');
+post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) });
+post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) });
+check(post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) }).error === 'limite', 'como mucho 3 regalos al día');
+check(post({ accion: 'regalo', id: X, apodo: 'z', para: A.slice(0, 8) }).ok === false, 'un ID sin sincronizar no puede regalar');
 console.log(ok ? '\nServidor OK' : '\nHAY FALLOS');
 process.exit(ok ? 0 : 1);

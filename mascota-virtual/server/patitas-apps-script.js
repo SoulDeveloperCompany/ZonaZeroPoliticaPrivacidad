@@ -12,6 +12,7 @@
 //   Puntajes   · mejor puntaje de cada jugador en cada competencia
 //   Regalos    · regalos que TÚ escribes a mano (a un jugador o a "todos")
 //   Eventos    · estadísticas anónimas de uso (sesiones, etapas, minijuegos...). Resumen: ?accion=metricas
+//   Comunidad  · progreso del desafío semanal entre todos (ver DESAFIOS)
 //
 // Protección contra trampas (el juego decide las monedas en el móvil, así que el servidor pone topes):
 //   precio de adopción ≤ PRECIO_MAX · tarifa de pareja entre TARIFA_MIN y TARIFA_MAX
@@ -19,21 +20,32 @@
 //   cada jugador adopta ≤ ADOPCIONES_DIA y usa ≤ PAREJAS_DIA parejas al día; 1 puntaje por competencia cada 10 min
 
 const HOJAS = {
-  Jugadores: ['id', 'apodo', 'mascota', 'especie', 'etapa', 'sexo', 'genes', 'accesorios', 'visto', 'pendiente', 'limites', 'creado'],
+  Jugadores: ['id', 'apodo', 'mascota', 'especie', 'etapa', 'sexo', 'genes', 'accesorios', 'visto', 'pendiente', 'limites', 'creado', 'buzon'],
   Adopciones: ['oferta', 'dueno', 'duenoApodo', 'mascotaId', 'nombre', 'especie', 'sexo', 'genes', 'precio', 'fecha', 'estado', 'adoptante'],
   Parejas: ['anuncio', 'dueno', 'duenoApodo', 'mascotaId', 'nombre', 'especie', 'sexo', 'genes', 'tarifa', 'fecha', 'usos', 'activo'],
   Puntajes: ['id', 'apodo', 'competencia', 'puntaje', 'estrellas', 'mascota', 'especie', 'fecha'],
   Regalos: ['regalo', 'para', 'monedas', 'estrellas', 'objeto', 'cantidad', 'mensaje', 'activo', 'entregados'],
   Eventos: ['fecha', 'dia', 'id', 'version', 'evento', 'dato'],
+  Comunidad: ['semana', 'accion', 'total'],
 };
 // Columnas de ids: se guardan como texto para que Sheets no las convierta en números
-const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'], Eventos: ['B', 'C', 'D'] };
+const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'], Eventos: ['B', 'C', 'D'], Comunidad: ['A', 'B'] };
 const PRECIO_MAX = 220;      // máximo legítimo del juego ≈ 197 (bebé perfecto y muy bello)
 const TARIFA_MIN = 50, TARIFA_MAX = 200;
 const INGRESO_MAX_DIA = 600; // monedas al día que un dueño puede cobrar de otros jugadores
 const ADOPCIONES_DIA = 3, PAREJAS_DIA = 5;
 const PUNTAJE_CADA_MS = 10 * 60 * 1000;
 const EVENTOS_MAX = 40;      // eventos por sincronización
+const REGALOS_DIA = 3, REGALO_MONEDAS = 15, BUZON_MAX = 10;
+const APORTE_MAX = 50;       // acciones que cuenta cada sincronización para el desafío
+/** Desafíos semanales entre todos: rotan cada semana. Ajusta los objetivos al número de jugadores. */
+const DESAFIOS = [
+  { accion: 'bathe', titulo: 'Entre todos, {n} baños', objetivo: 200, monedas: 100, estrellas: 1 },
+  { accion: 'play', titulo: 'Entre todos, {n} ratos de juego', objetivo: 300, monedas: 100, estrellas: 1 },
+  { accion: 'walk', titulo: 'Entre todos, {n} paseos', objetivo: 150, monedas: 120, estrellas: 1 },
+  { accion: 'pet', titulo: 'Entre todos, {n} caricias', objetivo: 500, monedas: 100, estrellas: 1 },
+  { accion: 'feed', titulo: 'Entre todos, {n} comidas', objetivo: 400, monedas: 100, estrellas: 1 },
+];
 const MIN_PARQUE = 30; // minutos que un jugador cuenta como "en el parque" tras su última conexión
 
 // ---------- Utilidades de hojas ----------
@@ -72,6 +84,26 @@ function limites_(j) {
   return l;
 }
 function jugador_(id) { return filas_('Jugadores').find((f) => f.id === id); }
+/** Semana actual (número de semanas desde 1970) y su desafío. */
+function semana_() { return Math.floor(Date.now() / (7 * 864e5)); }
+function desafio_() {
+  const n = semana_();
+  const def = DESAFIOS[n % DESAFIOS.length];
+  const fila = filas_('Comunidad').find((f) => String(f.semana) === String(n) && f.accion === def.accion);
+  return { semana: String(n), accion: def.accion, titulo: def.titulo.replace('{n}', def.objetivo), objetivo: def.objetivo,
+    progreso: fila ? num_(fila.total, 1e9) : 0, premio: { monedas: def.monedas, estrellas: def.estrellas } };
+}
+/** Suma lo que aportó un jugador al desafío de esta semana. */
+function aportar_(aportes) {
+  if (!aportes || typeof aportes !== 'object') return;
+  const n = semana_();
+  const def = DESAFIOS[n % DESAFIOS.length];
+  const cant = num_(aportes[def.accion], APORTE_MAX);
+  if (!cant) return;
+  const fila = filas_('Comunidad').find((f) => String(f.semana) === String(n) && f.accion === def.accion) || { semana: String(n), accion: def.accion, total: 0 };
+  fila.total = num_(fila.total, 1e9) + cant;
+  escribir_('Comunidad', fila);
+}
 function filas_(nombre) {
   const h = hoja_(nombre);
   const n = h.getLastRow() - 1;
@@ -181,13 +213,16 @@ function doPost(e) {
         const m = mascota_(d.mascota);
         let j = jugador_(d.id) || { pendiente: 0, creado: new Date() };
         const monedas = num_(j.pendiente, 1e9);
-        j = Object.assign(j, { id: d.id, apodo, mascota: m.nombre, especie: m.especie, etapa: m.etapa, sexo: m.sexo, genes: m.genes, accesorios: m.accesorios, visto: new Date(), pendiente: 0 });
+        let buzon = [];
+        try { buzon = JSON.parse(j.buzon || '[]'); } catch (e) { buzon = []; }
+        j = Object.assign(j, { id: d.id, apodo, mascota: m.nombre, especie: m.especie, etapa: m.etapa, sexo: m.sexo, genes: m.genes, accesorios: m.accesorios, visto: new Date(), pendiente: 0, buzon: '[]' });
         escribir_('Jugadores', j);
         guardarEventos_(d.id, d.version, d.eventos);
+        aportar_(d.aportes);
         // Crías de este jugador que alguien adoptó desde la última vez
         const adoptadas = filas_('Adopciones').filter((f) => f.dueno === d.id && f.estado === 'adoptada');
         adoptadas.forEach((f) => { f.estado = 'entregada'; escribir_('Adopciones', f); });
-        return responder_({ ok: true, monedas, adoptadas: adoptadas.map((f) => ({ oferta: f.oferta, mascotaId: f.mascotaId, precio: f.precio })), regalos: entregarRegalos_(d.id) });
+        return responder_({ ok: true, monedas, adoptadas: adoptadas.map((f) => ({ oferta: f.oferta, mascotaId: f.mascotaId, precio: f.precio })), regalos: entregarRegalos_(d.id), buzon, desafio: desafio_() });
       }
       case 'publicarAdopcion': {
         const m = mascota_(d.cria);
@@ -261,6 +296,25 @@ function doPost(e) {
         escribir_('Puntajes', Object.assign(previa || {}, { id: d.id, apodo, competencia: comp, puntaje, estrellas: num_(d.estrellas, 5), mascota: texto_(d.mascota, 16), especie: ESPECIES.indexOf(d.especie) >= 0 ? d.especie : 'dog', fecha: new Date() }));
         return responder_({ ok: true });
       }
+      case 'regalo': {
+        // Golosina para la mascota de otro jugador del parque ("para" = id corto que se ve en el parque)
+        const para = texto_(d.para, 24);
+        const yo = jugador_(d.id);
+        if (!yo || para.length < 8) return responder_({ ok: false, error: 'sin-sincronizar' });
+        const l = limites_(yo);
+        if ((l.regalos || 0) >= REGALOS_DIA) return responder_({ ok: false, error: 'limite' });
+        const dest = filas_('Jugadores').find((f) => f.id !== d.id && f.id.indexOf(para) === 0);
+        if (!dest) return responder_({ ok: false, error: 'no-disponible' });
+        l.regalos = (l.regalos || 0) + 1;
+        yo.limites = JSON.stringify(l);
+        escribir_('Jugadores', yo);
+        let buzon = [];
+        try { buzon = JSON.parse(dest.buzon || '[]'); } catch (e) { buzon = []; }
+        buzon.push({ de: apodo, monedas: REGALO_MONEDAS });
+        dest.buzon = JSON.stringify(buzon.slice(-BUZON_MAX));
+        escribir_('Jugadores', dest);
+        return responder_({ ok: true });
+      }
       default:
         return responder_({ ok: false, error: 'accion' });
     }
@@ -297,7 +351,7 @@ function doGet(e) {
       return responder_(metricas_());
     default:
       prepararHojas();
-      return responder_({ ok: true, servidor: 'Patitas', version: 2 });
+      return responder_({ ok: true, servidor: 'Patitas', version: 3 });
   }
 }
 

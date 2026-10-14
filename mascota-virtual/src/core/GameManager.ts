@@ -17,6 +17,7 @@ import { Clock } from './Clock';
 import { Analytics } from '../systems/online/Analytics';
 import { BondSystem } from '../systems/pet/BondSystem';
 import { CollectionSystem } from '../systems/breeding/CollectionSystem';
+import { Community } from '../systems/online/Community';
 import { GameConfig } from './GameConfig';
 
 /** Si entre dos ticks pasa más que esto, se considera tiempo offline (app en segundo plano). */
@@ -43,6 +44,7 @@ export class GameManager {
     Analytics.instance.start();
     BondSystem.instance.start();
     CollectionSystem.instance.start();
+    Community.instance.start();
     this.lastTick = Clock.now();
     this.lastSave = this.lastTick;
     this.timer = setInterval(() => this.tick(), 1000);
@@ -93,6 +95,12 @@ export class GameManager {
       if (r.monedas > 0) {
         EconomySystem.instance.addCoins(r.monedas);
         toast(`🌐 Otros jugadores te pagaron ${r.monedas} 🪙`, 'good');
+      }
+      if (r.buzon.length) {
+        const total = r.buzon.reduce((t, b) => t + (Number(b.monedas) || 0), 0);
+        EconomySystem.instance.addCoins(total);
+        const de = [...new Set(r.buzon.map((b) => b.de))].slice(0, 3).join(', ');
+        toast(`🎁 ${de} dejó una golosina a tu mascota (+${total} 🪙)`, 'good');
       }
       for (const g of r.regalos) {
         const item = EconomySystem.instance.giveGift(g);

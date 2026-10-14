@@ -28,6 +28,7 @@ import { celebrate, celebrateStage } from './Celebration';
 import { feedback, play, type SoundId } from './Feedback';
 import { Tutorial } from './Tutorial';
 import { BondSystem } from '../systems/pet/BondSystem';
+import { maybeAskSupportSurvey } from './Survey';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -138,6 +139,7 @@ export class App {
       this.greet(report);
       this.offerDaily();
       Tutorial.maybeStart();
+      setTimeout(maybeAskSupportSurvey, 6000);
     }
   }
 

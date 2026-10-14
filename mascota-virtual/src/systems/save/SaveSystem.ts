@@ -176,6 +176,7 @@ export class SaveSystem {
       online: { ...defaults.online, ...raw.online },
       settings: { ...defaults.settings, ...raw.settings },
       decor: { ...defaults.decor, ...raw.decor },
+      community: { ...defaults.community, ...raw.community },
       version: SAVE_VERSION,
     } as GameData;
 

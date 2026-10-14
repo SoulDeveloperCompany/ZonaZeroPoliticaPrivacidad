@@ -601,3 +601,7 @@ small { color: var(--muted); }
 .swatch { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; border: 2px solid rgba(58,42,32,0.15); }
 .swatch.missing { background: #f1e6da; color: var(--muted); font-weight: 900; }
 .swatch.rare { border-color: #e9c46a; box-shadow: 0 0 0 2px #fff3c4; }
+
+/* ---------- Desafío semanal (Auditoría P12) ---------- */
+.challenge { margin-bottom: 10px; }
+.challenge .bond-row { margin: 6px 0 2px; }

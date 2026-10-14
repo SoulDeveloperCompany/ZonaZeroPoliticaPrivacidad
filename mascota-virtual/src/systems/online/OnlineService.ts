@@ -15,6 +15,7 @@ import { Analytics } from './Analytics';
 
 /** Versión de la app (la pone vite.config.ts desde android/app/build.gradle). */
 const APP_VERSION: string = import.meta.env.VITE_APP_VERSION ?? 'web';
+import { Community } from './Community';
 import type { AccessorySlot, PetGenes, Sex } from '../pet/PetTypes';
 
 /** Mascota tal como viaja al servidor. */
@@ -164,12 +165,19 @@ export class OnlineService {
   }
 
   /** Sube la mascota principal y recibe monedas pendientes y crías adoptadas. */
-  async sync(main: Pet | undefined): Promise<{ monedas: number; adoptadas: { oferta: string; mascotaId: string; precio: number }[]; regalos: Gift[] }> {
+  async sync(main: Pet | undefined): Promise<{ monedas: number; adoptadas: { oferta: string; mascotaId: string; precio: number }[]; regalos: Gift[]; buzon: { de: string; monedas: number }[] }> {
     const eventos = Analytics.instance.pending();
-    const res = await this.call('POST', { accion: 'sincronizar', mascota: main ? OnlineService.toRemote(main) : null, version: APP_VERSION, eventos });
+    const aportes = Community.instance.pendingAportes();
+    const res = await this.call('POST', { accion: 'sincronizar', mascota: main ? OnlineService.toRemote(main) : null, version: APP_VERSION, eventos, aportes });
     Analytics.instance.acknowledge(eventos.length);
+    Community.instance.onSynced(aportes, res.desafio);
     this.state.online.lastSync = Clock.now();
-    return { monedas: Number(res.monedas) || 0, adoptadas: res.adoptadas ?? [], regalos: res.regalos ?? [] };
+    return { monedas: Number(res.monedas) || 0, adoptadas: res.adoptadas ?? [], regalos: res.regalos ?? [], buzon: Array.isArray(res.buzon) ? res.buzon : [] };
+  }
+
+  /** Deja una golosina a la mascota de otro jugador del parque (id corto del parque). */
+  async sendGift(parkId: string): Promise<void> {
+    await this.call('POST', { accion: 'regalo', para: parkId });
   }
 
   async publishAdoption(pet: Pet, precio: number): Promise<string> {
@@ -217,7 +225,7 @@ export class OnlineService {
     const m = (err as Error)?.message;
     if (m === 'sin-servidor') return 'Conecta el servidor en ⚙️ Ajustes › Servidor';
     if (m === 'no-disponible') return 'Ya no está disponible';
-    if (m === 'limite') return 'Has llegado al límite de hoy (3 adopciones y 5 parejas al día)';
+    if (m === 'limite') return 'Has llegado al límite de hoy (3 adopciones, 5 parejas y 3 regalos al día)';
     if (m === 'sin-sincronizar') return 'Conectando con el servidor… inténtalo en unos segundos';
     return 'Sin conexión con el servidor. Inténtalo más tarde';
   }
