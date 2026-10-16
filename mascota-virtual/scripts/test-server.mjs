@@ -25,6 +25,7 @@ const ctx = {
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) },
   Utilities: { getUuid: () => crypto.randomUUID(), formatDate: (d) => new Date(d).toISOString().slice(0, 10) },
   // Propiedades del script e IA simuladas: nunca se llama a la API real
+  ScriptApp: { AuthMode: { FULL: 'FULL' }, requireScopes() {} },
   PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => ctx._props[k] ?? null }) },
   UrlFetchApp: { fetch: (url, opts) => { ctx._fetches.push({ url, opts }); return { getResponseCode: () => 200, getContentText: () => JSON.stringify(ctx._iaRespuesta) }; } },
   _props: {}, _fetches: [], _iaRespuesta: null,

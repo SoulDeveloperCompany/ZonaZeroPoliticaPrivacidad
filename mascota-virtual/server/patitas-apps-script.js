@@ -352,6 +352,8 @@ function doPost(e) {
  * Google te pedirá permiso para "conectarse a un servicio externo" y verás en el registro una página de prueba.
  */
 function probarIA() {
+  // Si al autorizar se desmarcó "Conectarse a un servicio externo", esto vuelve a pedir ese permiso
+  ScriptApp.requireScopes(ScriptApp.AuthMode.FULL, ['https://www.googleapis.com/auth/script.external_request']);
   const clave = String(PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY') || '').trim();
   const nombres = PropertiesService.getScriptProperties().getKeys();
   // Nunca se muestra la clave: solo si existe, su longitud y si tiene el formato esperado
