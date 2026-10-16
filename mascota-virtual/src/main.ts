@@ -1,6 +1,12 @@
 /**
  * Punto de entrada: arranca la lógica del juego y después la interfaz.
  */
+// Fuente Nunito empaquetada (antes dependía de que el móvil la tuviera: casi nunca)
+import '@fontsource/nunito/latin-400.css';
+import '@fontsource/nunito/latin-600.css';
+import '@fontsource/nunito/latin-700.css';
+import '@fontsource/nunito/latin-800.css';
+import '@fontsource/nunito/latin-900.css';
 import './ui/styles.css';
 import { GameManager } from './core/GameManager';
 import { App } from './ui/App';

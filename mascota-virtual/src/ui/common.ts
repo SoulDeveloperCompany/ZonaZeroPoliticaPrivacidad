@@ -2,7 +2,7 @@
 import { DataRegistry } from '../data/DataRegistry';
 import { accessoryIconSVG } from '../sprites/Accessories';
 import { renderPetSVG } from '../sprites/PetSprite';
-import type { Pet } from '../systems/pet/Pet';
+import type { Pet, PetMood } from '../systems/pet/Pet';
 import { Sex, STAT_LABELS, type PetStatKey } from '../systems/pet/PetTypes';
 import { esc } from './dom';
 
@@ -33,12 +33,12 @@ export function stageName(pet: Pet): string {
 }
 
 /** Sprite de una mascota con su estado actual. */
-export function petSVG(pet: Pet, className = ''): string {
+export function petSVG(pet: Pet, className = '', mood?: PetMood): string {
   return renderPetSVG({
     speciesId: pet.data.speciesId,
     genes: pet.data.genes,
     stage: pet.stage,
-    mood: pet.mood,
+    mood: mood ?? pet.mood,
     sex: pet.data.sex,
     equipped: pet.data.equipped,
     className,

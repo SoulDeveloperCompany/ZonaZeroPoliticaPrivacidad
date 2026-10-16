@@ -30,7 +30,7 @@ const agility: Minigame = (stage, pet) =>
   new Promise((resolve) => {
     stage.innerHTML = `
       <div class="mg-hud"><span class="mg-score">0 / 0</span><span class="mg-help">Toca para saltar</span></div>
-      <div class="mg-track"><div class="mg-runner">${petSVG(pet)}</div><div class="mg-ground"></div></div>`;
+      <div class="mg-track"><div class="mg-runner">${petSVG(pet, '', 'happy')}</div><div class="mg-ground"></div></div>`;
     const track = stage.querySelector<HTMLElement>('.mg-track')!;
     const runner = stage.querySelector<HTMLElement>('.mg-runner')!;
     const hud = stage.querySelector<HTMLElement>('.mg-score')!;
@@ -120,7 +120,7 @@ const beauty: Minigame = (stage, pet) =>
   new Promise((resolve) => {
     stage.innerHTML = `
       <div class="mg-hud"><span class="mg-score">Pose 1 / 5</span><span class="mg-help">Toca en la zona dorada</span></div>
-      <div class="mg-runway"><div class="mg-model">${petSVG(pet)}</div></div>
+      <div class="mg-runway"><div class="mg-model">${petSVG(pet, '', 'happy')}</div></div>
       <div class="mg-meter"><div class="mg-zone"></div><div class="mg-marker"></div></div>
       <div class="mg-judges"></div>`;
     const model = stage.querySelector<HTMLElement>('.mg-model')!;
@@ -205,7 +205,7 @@ const tricks: Minigame = (stage, pet) =>
     while (icons.length < 4) icons.push(['⬆️', '➡️', '⬇️', '⬅️'][icons.length]);
     stage.innerHTML = `
       <div class="mg-hud"><span class="mg-score">Ronda 1</span><span class="mg-help">Repite la secuencia</span></div>
-      <div class="mg-performer">${petSVG(pet)}</div>
+      <div class="mg-performer">${petSVG(pet, '', 'happy')}</div>
       <div class="mg-pads">${icons.map((ic, i) => `<button class="mg-pad" data-i="${i}" disabled>${ic}</button>`).join('')}</div>`;
     const pads = [...stage.querySelectorAll<HTMLButtonElement>('.mg-pad')];
     const hud = stage.querySelector<HTMLElement>('.mg-score')!;

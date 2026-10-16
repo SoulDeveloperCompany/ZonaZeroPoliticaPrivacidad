@@ -146,10 +146,12 @@ export function showToast(text: string, kind: 'info' | 'good' | 'bad' = 'info'):
     box.id = 'toasts';
     document.body.appendChild(box);
   }
+  // Si el mismo aviso ya está en pantalla, no se repite
+  for (const old of Array.from(box.children)) if (old.textContent === text) old.remove();
   const t = el('div', `toast toast-${kind}`, esc(text));
   box.appendChild(t);
-  // Máximo 3 avisos a la vez: se descartan los más antiguos
-  while (box.children.length > 3) box.firstElementChild?.remove();
+  // Máximo 2 avisos a la vez: se descartan los más antiguos
+  while (box.children.length > 2) box.firstElementChild?.remove();
   setTimeout(() => t.classList.add('toast-out'), 2600);
   setTimeout(() => t.remove(), 3000);
 }

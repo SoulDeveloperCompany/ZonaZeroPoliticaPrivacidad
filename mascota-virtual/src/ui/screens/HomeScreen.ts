@@ -40,6 +40,7 @@ import { BondSystem } from '../../systems/pet/BondSystem';
 import { Share } from '@capacitor/share';
 import { OnlineConfig } from '../../core/OnlineConfig';
 import { Analytics } from '../../systems/online/Analytics';
+import { hasIcon, icon } from '../icons';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -221,7 +222,7 @@ export class HomeScreen implements Screen {
       .filter((a) => a.button !== false)
       .map(
         (a) => `<button class="dock-btn" data-act="action" data-id="${a.id}">
-          <span class="dock-icon">${a.icon}</span><span class="dock-name">${a.name}</span><span class="dock-badge"></span></button>`,
+          <span class="dock-icon">${hasIcon(a.id) ? icon(a.id) : a.icon}</span><span class="dock-name">${a.name}</span><span class="dock-badge"></span></button>`,
       )
       .join('');
 
@@ -234,14 +235,14 @@ export class HomeScreen implements Screen {
           <button class="name-chip" data-act="rename">${esc(pet.name)} ${sexIcon(pet.data.sex)} <span class="tag">${stageName(pet)}</span> <span class="edit">✏️</span></button>
           <div class="growth-mini"><div class="growth-label"></div><div class="bar bar-growth"><div class="bar-fill"></div></div></div>
         </div>
-        <button class="stats-btn" data-act="stats" aria-label="Ver estado">📊<span class="stats-alert" hidden></span></button>
-        <button class="stats-btn missions-btn" data-act="missions" aria-label="Misiones">📋<span class="missions-badge" hidden></span></button>
-        <button class="stats-btn share-btn" data-act="share" aria-label="Compartir">📤</button>
+        <button class="stats-btn" data-act="stats" aria-label="Ver estado">${icon('stats')}<span class="stats-alert" hidden></span></button>
+        <button class="stats-btn missions-btn" data-act="missions" aria-label="Misiones">${icon('missions')}<span class="missions-badge" hidden></span></button>
+        <button class="stats-btn share-btn" data-act="share" aria-label="Compartir">${icon('share')}</button>
         <div class="need-bubble" hidden></div>
         <div class="pet-stage-wrap"><div class="pet-sprite" data-act="pet-touch"></div></div>
         <div class="fx-layer"></div>
         ${pet.isEscaped ? this.escapedHTML(pet) : `<div class="dock">${actions}
-          <button class="dock-btn" data-act="backpack"><span class="dock-icon">🎒</span><span class="dock-name">Mochila</span></button></div>
+          <button class="dock-btn" data-act="backpack"><span class="dock-icon">${icon('backpack')}</span><span class="dock-name">Mochila</span></button></div>
           <div class="food-tray" hidden>
             <div class="tray-head"><span>Arrastra la comida hasta ${esc(pet.name)} 👆</span><button class="icon-close" data-act="close-tray" aria-label="Cerrar">✕</button></div>
             <div class="tray-items"></div>
@@ -376,7 +377,7 @@ export class HomeScreen implements Screen {
     const fill = this.root.querySelector<HTMLElement>('.bar-growth .bar-fill');
     if (label && fill) {
       const boost = GrowthSystem.instance.growthMultiplier(pet, Clock.now()) > 1 ? ' ⏩x2' : '';
-      label.innerHTML = `<b>${g.current.name}</b>${boost}`;
+      label.innerHTML = g.next ? `Hacia <b>${g.next.name}</b> · ${Math.round(g.progress * 100)}%${boost}` : `<b>${g.current.name}</b> · ¡Etapa final!`;
       fill.style.width = `${Math.round(g.progress * 100)}%`;
     }
 

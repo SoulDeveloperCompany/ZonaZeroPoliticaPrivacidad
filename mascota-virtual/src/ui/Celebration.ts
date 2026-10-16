@@ -37,7 +37,7 @@ export function celebrate(opts: { pet: Pet; title: string; text: string; extra?:
     title: opts.title,
     className: 'celebration',
     body: `${confetti()}
-      <div class="celebration-pet">${petSVG(opts.pet)}</div>
+      <div class="celebration-pet">${petSVG(opts.pet, '', 'happy')}</div>
       <p class="center">${opts.text}</p>
       ${opts.extra ?? ''}
       <p class="hint center">📸 Guardado en el álbum</p>`,

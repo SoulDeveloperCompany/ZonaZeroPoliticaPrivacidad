@@ -30,6 +30,7 @@ import { Tutorial } from './Tutorial';
 import { BondSystem } from '../systems/pet/BondSystem';
 import { maybeAskSupportSurvey } from './Survey';
 import { PRODUCTS } from '../data/premium';
+import { hasIcon, icon } from './icons';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -56,11 +57,11 @@ export class App {
     this.shell.innerHTML = `
       <header class="topbar">
         <span class="logo-sm">🐾 Patitas</span>
-        <span class="wallet"><span class="coins">🪙 0</span><span class="stars-w">⭐ 0</span></span>
-        <button class="icon-btn" data-act="settings" aria-label="Ajustes">⚙️</button>
+        <span class="wallet"><span>${icon('coin')}<b class="coins">0</b></span><span>${icon('star')}<b class="stars-w">0</b></span></span>
+        <button class="icon-btn" data-act="settings" aria-label="Ajustes">${icon('settings')}</button>
       </header>
       <main class="screen"></main>
-      <nav class="bottom-nav">${NAV.map((n) => `<button class="nav-btn" data-act="nav" data-id="${n.id}"><span>${n.icon}</span><small>${n.label}</small></button>`).join('')}</nav>`;
+      <nav class="bottom-nav">${NAV.map((n) => `<button class="nav-btn" data-act="nav" data-id="${n.id}"><span>${hasIcon(n.id) ? icon(n.id) : n.icon}</span><small>${n.label}</small></button>`).join('')}</nav>`;
     this.mountPoint.appendChild(this.shell);
     this.main = this.shell.querySelector('.screen') as HTMLElement;
 
@@ -194,8 +195,8 @@ export class App {
 
   private updateWallet(): void {
     const eco = EconomySystem.instance;
-    this.shell.querySelector('.coins')!.textContent = `🪙 ${eco.coins}`;
-    this.shell.querySelector('.stars-w')!.textContent = `⭐ ${eco.stars}`;
+    this.shell.querySelector('.coins')!.textContent = String(eco.coins);
+    this.shell.querySelector('.stars-w')!.textContent = String(eco.stars);
   }
 
   private offerDaily(): void {
@@ -228,15 +229,16 @@ export class App {
   private openSettings(): void {
     showModal({
       title: '⚙️ Ajustes',
+      className: 'settings-modal',
       body: `
         <div class="server-box">
-          <b>🌐 Servidor (multijugador)</b>
+          <b>🌐 Juego en línea</b>
           <p class="hint">Tu apodo: <b class="apodo">${esc(OnlineService.instance.player.apodo)}</b> <button class="btn btn-sm" data-act="apodo">🎲 Cambiar</button></p>
           <div class="player-id"><span>Tu ID</span><code id="player-id">${esc(OnlineService.instance.player.id)}</code><button class="btn btn-sm" data-act="copy-id">📋 Copiar</button></div>
-          <p class="hint">Usa este ID en la pestaña <b>Regalos</b> de la hoja (columna <b>para</b>) para enviarle un regalo a este jugador.</p>
+          ${HERRAMIENTAS ? `<p class="hint">Usa este ID en la pestaña <b>Regalos</b> de la hoja (columna <b>para</b>) para enviarle un regalo a este jugador.</p>
           <label class="field"><span>URL del Apps Script (/exec)</span>
             <input id="server-url" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(OnlineService.instance.url)}"/></label>
-          <div class="field-row"><button class="btn btn-primary" data-act="connect">Conectar</button><span class="server-status">${serverStatus()}</span></div>
+          <div class="field-row"><button class="btn btn-primary" data-act="connect">Conectar</button><span class="server-status">${serverStatus()}</span></div>` : `<p class="hint">Estado: <span class="server-status">${serverStatus()}</span></p>`}
           <label class="field-row hint"><input type="checkbox" data-act="analytics" ${Analytics.instance.enabled ? 'checked' : ''}> Enviar estadísticas anónimas de uso (ayudan a mejorar el juego)</label>
         </div>
         <p class="hint">Tu partida se guarda sola cada 10 segundos y al salir.</p>
@@ -257,7 +259,7 @@ export class App {
           <button class="btn btn-sm" data-act="ff24">+1 día real</button>
           <button class="btn btn-sm" data-act="coins">+1000 🪙 +20 ⭐</button>
         </details>` : ''}
-        <p class="hint center">Patitas v0.1 · SoulDeveloperCompany</p>`,
+        <p class="hint center settings-version">Patitas v${esc(String(import.meta.env.VITE_APP_VERSION ?? ''))} · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
         if (act === 'sound' || act === 'haptics') {

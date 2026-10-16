@@ -72,10 +72,13 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
   encuesta de apoyo única (`ui/Survey.ts`, evento `encuesta_apoyo`). No hay pagos: se decide con los datos.
 
 ## Pendiente
-- Prueba cerrada «Alpha» enviada a revisión el 5 oct 2026 (v1.1.0, 178 países, listas «Testers Mi Zoológico» y
-  «Yo interna», como Zoo). Cuando la aprueben: 12 testers × 14 días y luego pedir acceso a producción.
-  Las próximas versiones se suben a ese mismo canal (Prueba cerrada › Crear nueva versión).
-- Añadir como colaborador en GitHub a `carloseduardobonillapalma-lgtm` (Settings › Collaborators).
-- Compilar y subir la v1.2.0 (incluye etapas 0-5) y enviar el cambio de Seguridad de los datos con ella.
-- Más accesorios (hay 10; necesitan dibujo SVG), probar sonido y vibración en un móvil real.
-- Ideas: notificaciones locales opcionales, música ambiente, nombre definitivo.
+- Prueba cerrada «Alpha»: v1.3.0 (código 412070) disponible para testers desde el 15 oct 2026.
+  Faltan 12 testers × 14 días y luego pedir acceso a producción. Nuevas versiones: Prueba cerrada › Crear nueva versión.
+- v1.4.0 (compras de Google Play + rediseño): compilar con COMPILAR PARA PLAY.bat y subirla a la prueba cerrada.
+  Después crear en Monetizar › Productos integrados `patitas_fundador` (2,99) y `patitas_deco_premium` (1,99),
+  actualizar la clasificación de contenido (compras: Sí), añadir testers de licencias y enviar Seguridad de los datos.
+- Borrar filas de prueba de la hoja (Adopciones «Mamá» y jugadores de prueba).
+- Diseño (docs/PROMPT-AUDITORIA-DISENO.md): hechos los arreglos rápidos y los iconos SVG (src/ui/icons.ts) de
+  navegación, acciones, monedero y ajustes. Queda: iconos de comida/tienda (siguen siendo emoji), estados vacíos,
+  diseño de minijuegos (campo más grande, botón salir), barras de stats con colores menos alarmantes.
+- Ideas: notificaciones locales opcionales, música ambiente, más eventos de temporada.

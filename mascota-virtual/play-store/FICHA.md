@@ -77,3 +77,18 @@ URL de eliminación de datos: .../privacidad.html#eliminar-datos
 2. Generar el **AAB firmado** con `COMPILAR PARA PLAY.bat` y subirlo a **Prueba cerrada**.
    Las cuentas personales nuevas necesitan una prueba cerrada con **al menos 12 testers durante 14 días**
    antes de poder pedir acceso a Producción.
+
+## Compras dentro de la app (desde la v1.4.0)
+
+Crear en Play Console › Monetizar con Play › Productos › **Productos integrados en la aplicación** (compra única).
+Solo se pueden crear después de subir un `.aab` que incluya `@capgo/native-purchases` (permiso BILLING), es decir la v1.4.0.
+
+| Id del producto (exacto) | Nombre | Precio base | Descripción |
+|---|---|---|---|
+| `patitas_fundador` | Paquete Fundador | 2,99 € | Corona de fundador, 2 temas exclusivos, 30 ⭐ e insignia. Apoya el desarrollo. |
+| `patitas_deco_premium` | Colección Deco Premium | 1,99 € | 6 temas exclusivos para la casa. |
+
+- Todo es cosmético (sin pay-to-win). Sin anuncios.
+- Al activar productos: actualizar **Clasificación del contenido** (pregunta de compras digitales → Sí) y revisar que la ficha muestre "Compras en la aplicación".
+- Probar con **testers con licencia** (Play Console › Configuración › Pruebas de licencias) antes de producción.
+- Precios en Play Console: escribir 2,99 con coma (como en Mi Zoológico).

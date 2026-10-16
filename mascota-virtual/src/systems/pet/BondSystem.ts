@@ -26,7 +26,7 @@ const BOND_TEXT: Record<number, string> = {
   20: 'Ya te reconoce: te mira cuando entras.',
   40: 'Confía en ti: viene corriendo a saludarte.',
   60: 'Te adora: a veces hace un truco solo para ti.',
-  80: 'Sois inseparables: te trae su juguete favorito.',
+  80: 'Son inseparables: te trae su juguete favorito.',
   100: 'Vínculo máximo: un amor para siempre. 💞',
 };
 
@@ -66,7 +66,7 @@ export class BondSystem {
   }
 
   static textFor(level: number): string {
-    return BOND_TEXT[level] ?? 'Os estáis conociendo.';
+    return BOND_TEXT[level] ?? 'Se están conociendo.';
   }
 
   /** Un cuidado: vínculo, primeras veces y comida favorita. */

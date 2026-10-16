@@ -14,10 +14,10 @@ type ShopTab = ItemCategory | 'premium';
 
 const TABS: { id: ShopTab; label: string }[] = [
   { id: 'food', label: '🍖 Comida' },
+  { id: 'premium', label: '💎 Premium' },
   { id: 'accessory', label: '🎀 Accesorios' },
   { id: 'furniture', label: '🛋️ Muebles' },
   { id: 'decor', label: '🖼️ Decoración' },
-  { id: 'premium', label: '💎 Premium' },
   { id: 'accelerator', label: '⏩ Crecimiento' },
   { id: 'medicine', label: '💊 Salud' },
   { id: 'special', label: '📡 Especial' },
