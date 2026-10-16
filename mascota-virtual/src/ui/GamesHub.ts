@@ -8,7 +8,7 @@ import { GamesSystem } from '../systems/games/GamesSystem';
 import { MissionSystem } from '../systems/games/MissionSystem';
 import type { Pet } from '../systems/pet/Pet';
 import type { PetStatKey } from '../systems/pet/PetTypes';
-import { STAT_ICONS, petSVG } from './common';
+import { STAT_ICONS, gameIcon, petSVG } from './common';
 import { el, esc } from './dom';
 import { PLAY_MINIGAMES } from './minigames/PlayGames';
 import { confetti } from './Celebration';
@@ -35,7 +35,7 @@ export function openGames(pet: Pet): void {
         const stage = DataRegistry.instance.getStage(g.minStage).name;
         const cap = gs.coinsToday(g.id) >= g.dailyCoinCap;
         return `<button class="game-card ${unlocked ? '' : 'locked'}" data-act="play" data-id="${g.id}">
-          <span class="game-icon">${unlocked ? g.icon : '🔒'}</span>
+          <span class="game-icon">${unlocked ? gameIcon(g.id, g.icon) : '🔒'}</span>
           <b>${esc(g.name)}</b>
           <small>${unlocked ? esc(g.description) : `Se desbloquea en ${stage}`}</small>
           <span class="game-meta">${unlocked ? `⚡${g.energyCost} · 🏆 ${gs.record(g.id)}${cap ? ' · 🪙 tope de hoy' : ''}` : stage}</span>
@@ -67,7 +67,7 @@ export function openGames(pet: Pet): void {
 async function runGame(pet: Pet, gameId: string): Promise<void> {
   const game = GamesSystem.instance.get(gameId);
   const overlay = el('div', 'minigame');
-  overlay.innerHTML = `<div class="mg-top"><div class="mg-title">${game.icon} ${esc(game.name)}</div><button class="btn btn-sm" data-exit>✕ Salir</button></div><div class="mg-stage"></div>`;
+  overlay.innerHTML = `<div class="mg-top"><div class="mg-title">${gameIcon(gameId, game.icon)} ${esc(game.name)}</div><button class="btn btn-sm" data-exit>✕ Salir</button></div><div class="mg-stage"></div>`;
   document.body.appendChild(overlay);
   duckMusic(true);
   let quit = false;
@@ -92,7 +92,7 @@ async function runGame(pet: Pet, gameId: string): Promise<void> {
   const verdict = r.score === 0 ? '¡Buen intento!' : r.record && prevRecord > 0 ? '¡Nuevo récord!' : ratio >= 0.75 ? '¡Muy bien!' : ratio >= 0.4 ? '¡Bien jugado!' : '¡Buen intento!';
   feedback(r.record ? 'level' : 'coin', r.record ? 'success' : 'light');
   const modal = showModal({
-    title: `${game.icon} ${esc(game.name)}`,
+    title: `${gameIcon(gameId, game.icon)} ${esc(game.name)}`,
     className: r.record && prevRecord > 0 ? 'celebration game-result' : 'game-result',
     body: `${r.record && prevRecord > 0 ? confetti() : ''}
       <div class="result-pet">${petSVG(pet, '', 'happy')}</div>

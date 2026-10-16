@@ -18,6 +18,7 @@ import { PetManager } from '../../systems/pet/PetManager';
 import type { Pet } from '../../systems/pet/Pet';
 import { GrowthStage, STAT_KEYS, STAT_LABELS, type PetStatKey } from '../../systems/pet/PetTypes';
 import {
+  inlineItem,
   STAT_HELP,
   STAT_ICONS,
   itemIcon,
@@ -43,6 +44,7 @@ import { Analytics } from '../../systems/online/Analytics';
 import { hasIcon, icon } from '../icons';
 import { PetMind } from '../../systems/pet/PetMind';
 import { furnitureSVG } from '../../sprites/Furniture';
+import { itemSVG } from '../../sprites/ItemIcons';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -354,7 +356,7 @@ export class HomeScreen implements Screen {
   /** "Lo que ha aprendido de ti" (PetMind). */
   private mindHTML(pet: Pet): string {
     const m = PetMind.instance.summary(pet);
-    const foods = (ids: string[]) => ids.map((id) => DataRegistry.instance.getItem(id)).map((i) => `${i.icon} ${esc(i.name)}`).join(', ');
+    const foods = (ids: string[]) => ids.map((id) => DataRegistry.instance.getItem(id)).map((i) => `${inlineItem(i.id)} ${esc(i.name)}`).join(', ');
     const baby = pet.stage === GrowthStage.Baby;
     return `<div class="mind-box"><b>🧠 Lo que ${esc(pet.name)} ha aprendido de ti</b>
       <p>💬 ${m.words.length ? `Sabe decir: ${m.words.map((w) => `<span class="word-chip">${esc(w)}</span>`).join(' ')}` : baby ? 'Aún es bebé: solo hace ruiditos. Pronto aprenderá palabras de lo que hagan juntos.' : 'Aprende palabras de lo que hacen juntos: comer, jugar, pasear…'}</p>
@@ -439,7 +441,7 @@ export class HomeScreen implements Screen {
       const html = `<div class="bond-row"><span>💞 Vínculo</span><div class="bar"><div class="bar-fill bond-fill" style="width:${pet.data.bond.toFixed(0)}%"></div></div><b>${pet.data.bond.toFixed(0)}</b></div>
         <p class="hint">${esc(BondSystem.textFor(nivel))} Sube con cuidados variados y nunca baja.</p>
         <div class="trait-chips">${pet.data.traits.map((t) => getTrait(t)).filter(Boolean).map((t) => `<span class="trait-chip" title="${esc(t!.description)}">${t!.icon} ${esc(t!.name)}</span>`).join('')}
-        ${fav ? `<span class="trait-chip">${fav.icon} Su comida de siempre: ${esc(fav.name)}</span>` : ''}</div>
+        ${fav ? `<span class="trait-chip">${inlineItem(fav.id)} Su comida de siempre: ${esc(fav.name)}</span>` : ''}</div>
         ${this.mindHTML(pet)}`;
       if (bondBox.dataset.html !== html) {
         bondBox.innerHTML = html;
@@ -620,7 +622,7 @@ export class HomeScreen implements Screen {
       .inventoryBy('food')
       .map(
         ({ item, quantity }) => `<div class="food-item" data-food="${item.id}" title="${esc(item.name)}">
-          <span class="food-emoji">${item.icon}</span>
+          <span class="food-emoji">${itemSVG(item.id) ?? item.icon}</span>
           <span class="food-qty">${quantity === Infinity ? '∞' : `x${quantity}`}</span>
           ${fav.includes(item.id) ? '<span class="food-fav">😍</span>' : ''}
           <small>${esc(item.name)}</small></div>`,
@@ -635,7 +637,7 @@ export class HomeScreen implements Screen {
       e.preventDefault();
       const home = this.root.querySelector<HTMLElement>('.home')!;
       const homeRect = home.getBoundingClientRect();
-      const ghost = el('span', 'food-ghost', node.querySelector('.food-emoji')!.textContent ?? '');
+      const ghost = el('span', 'food-ghost', node.querySelector('.food-emoji')!.innerHTML);
       home.appendChild(ghost);
       const move = (ev: PointerEvent) => {
         ghost.style.transform = `translate(${ev.clientX - homeRect.left - 30}px, ${ev.clientY - homeRect.top - 60}px)`;

@@ -7,7 +7,7 @@ import type { Pet } from '../../systems/pet/Pet';
 import { PetManager } from '../../systems/pet/PetManager';
 import { GrowthStage } from '../../systems/pet/PetTypes';
 import { renderPetSVG } from '../../sprites/PetSprite';
-import { petSVG, starsHTML, type Screen } from '../common';
+import { gameIcon, petSVG, starsHTML, type Screen } from '../common';
 import { el, esc, onAction, priceHTML, setHTML } from '../dom';
 import { MINIGAMES } from '../minigames/Minigames';
 import { showModal, showToast } from '../Overlay';
@@ -62,7 +62,7 @@ export class EventsScreen implements Screen {
         const check = pet ? EventSystem.instance.canEnter(pet, comp.id) : null;
         return `
           <div class="card comp">
-            <div class="comp-head"><span class="comp-icon">${comp.icon}</span><div><b>${esc(comp.name)}</b><small>${esc(comp.description)}</small></div></div>
+            <div class="comp-head"><span class="comp-icon">${gameIcon(comp.id, comp.icon)}</span><div><b>${esc(comp.name)}</b><small>${esc(comp.description)}</small></div></div>
             <div class="comp-meta">Inscripción: ${priceHTML(comp.entryFee)} · ⚡ ${comp.energyCost} · Premio máx: 🪙 ${comp.rewards.coins[4]} + ⭐ ${comp.rewards.stars[4]}</div>
             <button class="btn ${check?.ok ? 'btn-primary' : ''}" data-act="enter" data-id="${comp.id}" ${check?.ok ? '' : 'disabled'}>
               ${check ? (check.ok ? '¡Participar!' : reasonText(check)) : 'Elige una mascota'}
@@ -88,7 +88,7 @@ export class EventsScreen implements Screen {
     this.playing = true;
     const comp = DataRegistry.instance.getCompetition(compId);
     const overlay = el('div', 'minigame');
-    overlay.innerHTML = `<div class="mg-title">${comp.icon} ${esc(comp.name)}</div><div class="mg-stage"></div>`;
+    overlay.innerHTML = `<div class="mg-title">${gameIcon(comp.id, comp.icon)} ${esc(comp.name)}</div><div class="mg-stage"></div>`;
     document.body.appendChild(overlay);
     try {
       const performance = await MINIGAMES[comp.minigame](overlay.querySelector('.mg-stage') as HTMLElement, pet);
@@ -108,7 +108,7 @@ export class EventsScreen implements Screen {
     const comp = DataRegistry.instance.getCompetition(session.competitionId);
     const pet = PetManager.instance.get(session.petId);
     const modal = showModal({
-      title: `${comp.icon} Resultado`,
+      title: `${gameIcon(comp.id, comp.icon)} Resultado`,
       className: 'result-modal',
       body: `
         <div class="result-stars">${starsHTML(r.rating)}</div>

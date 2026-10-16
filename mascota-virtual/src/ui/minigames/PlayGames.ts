@@ -10,6 +10,20 @@ import { el, wait } from '../dom';
 import { MINIGAMES } from './Minigames';
 import { play } from '../Feedback';
 import { Combo, banner, burst, popText, shake } from './Juice';
+import { itemSVG } from '../../sprites/ItemIcons';
+import { icon as uiIcon } from '../icons';
+import { blip } from '../Feedback';
+import { renderPetSVG } from '../../sprites/PetSprite';
+import { GrowthStage } from '../../systems/pet/PetTypes';
+import { SPECIES } from '../../data/species';
+
+const OBSTACLES = ['mg_log', 'mg_rock', 'mg_cactus', 'mg_cone'].map((id) => itemSVG(id)!);
+
+/** Carita de bebé de una especie (cartas de Memoria). */
+function babyFace(speciesId: string): string {
+  const sp = SPECIES.find((s) => s.id === speciesId)!;
+  return renderPetSVG({ speciesId, genes: { primaryColor: sp.primaryPalette[0], secondaryColor: sp.secondaryPalette[0], pattern: 'plain', size: 1 }, stage: GrowthStage.Baby, mood: 'happy' });
+}
 
 export type PlayMinigame = (stage: HTMLElement, pet: Pet) => Promise<number>;
 
@@ -88,7 +102,7 @@ const cups: PlayMinigame = (stage) =>
   new Promise((resolve) => {
     stage.innerHTML = `
       <div class="mg-hud"><span class="mg-score">Ronda 1 / 5</span><span class="mg-help">¿Dónde está la pelota?</span></div>
-      <div class="cups-row">${[0, 1, 2].map((i) => `<button class="cup" data-i="${i}" disabled><span class="cup-body">🥤</span><span class="cup-ball">⚽</span></button>`).join('')}</div>
+      <div class="cups-row">${[0, 1, 2].map((i) => `<button class="cup" data-i="${i}" disabled><span class="cup-body">${itemSVG('mg_cup')}</span><span class="cup-ball">${uiIcon('play')}</span></button>`).join('')}</div>
       <div class="mg-judges"></div>`;
     const cupEls = [...stage.querySelectorAll<HTMLButtonElement>('.cup')];
     const hud = stage.querySelector<HTMLElement>('.mg-score')!;
@@ -145,8 +159,8 @@ const cups: PlayMinigame = (stage) =>
 // ------------------------------------------------------------------
 // Atrapa golosinas (Cachorro): mover a la mascota con el dedo
 // ------------------------------------------------------------------
-const GOOD = ['🍖', '🍪', '🦴', '🍓', '🥕', '🐟'];
-const BAD = ['🥦', '🌶️'];
+const GOOD = ['food_meat', 'food_kibble', 'food_bone', 'food_fruit', 'food_carrot', 'food_fish', 'food_cake'].map((id) => itemSVG(id)!);
+const BAD = ['mg_broccoli', 'mg_chili'].map((id) => itemSVG(id)!);
 const catchGame: PlayMinigame = (stage, pet) =>
   new Promise((resolve) => {
     const TOTAL = 30;
@@ -201,8 +215,9 @@ const catchGame: PlayMinigame = (stage, pet) =>
       if (spawnIn <= 0) {
         const roll = Math.random();
         const kind: 'good' | 'bad' | 'gold' = fever ? 'good' : roll < 0.05 ? 'gold' : roll < 0.27 ? 'bad' : 'good';
-        const icon = kind === 'gold' ? '⭐' : kind === 'good' ? GOOD[Math.floor(Math.random() * GOOD.length)] : BAD[Math.floor(Math.random() * BAD.length)];
-        const node = el('span', `falling ${kind}`, icon);
+        const icon = kind === 'gold' ? uiIcon('star') : kind === 'good' ? GOOD[Math.floor(Math.random() * GOOD.length)] : BAD[Math.floor(Math.random() * BAD.length)];
+        const node = el('span', `falling ${kind}`);
+        node.innerHTML = icon;
         field.appendChild(node);
         items.push({ node, x: 0.06 + Math.random() * 0.88, y: -36, v: h * (0.3 + Math.random() * 0.2) * ramp, kind, spin: (Math.random() - 0.5) * 400 });
         const final = TOTAL - elapsed < 6;
@@ -274,11 +289,11 @@ const catchGame: PlayMinigame = (stage, pet) =>
 // ------------------------------------------------------------------
 const memory: PlayMinigame = (stage) =>
   new Promise((resolve) => {
-    const faces = ['🐶', '🐱', '🐰', '🦜', '🐢', '🐹'];
+    const faces = SPECIES.map((s) => s.id);
     const deck = [...faces, ...faces].sort(() => Math.random() - 0.5);
     stage.innerHTML = `
       <div class="mg-hud"><span class="mg-score">Intentos: 0</span><span class="mg-help">Encuentra las parejas</span></div>
-      <div class="memory-grid">${deck.map((f, i) => `<button class="mem-card" data-i="${i}"><span class="mem-back">🐾</span><span class="mem-face">${f}</span></button>`).join('')}</div>`;
+      <div class="memory-grid">${deck.map((f, i) => `<button class="mem-card" data-i="${i}"><span class="mem-back">${uiIcon('walk')}</span><span class="mem-face">${babyFace(f)}</span></button>`).join('')}</div>`;
     const cards = [...stage.querySelectorAll<HTMLButtonElement>('.mem-card')];
     const hud = stage.querySelector<HTMLElement>('.mg-score')!;
     let open: number[] = [];
@@ -298,6 +313,12 @@ const memory: PlayMinigame = (stage) =>
           cards[a].classList.add('done');
           cards[b].classList.add('done');
           found++;
+          blip(found + 2);
+          const gr = stage.getBoundingClientRect();
+          for (const c of [cards[a], cards[b]]) {
+            const r = c.getBoundingClientRect();
+            burst(stage, r.left - gr.left + r.width / 2, r.top - gr.top + r.height / 2, ['✨', '💕'], 5);
+          }
           open = [];
           if (found === faces.length) {
             await wait(600);
@@ -373,7 +394,8 @@ const runner: PlayMinigame = (stage, pet) =>
       track.style.setProperty('--near', `${-scroll * 0.55}px`);
       // Huesos en el aire: premio por saltar en el momento justo
       if (Math.random() < dt / 1600) {
-        const node = el('div', 'mg-treat', '🦴');
+        const node = el('div', 'mg-treat');
+        node.innerHTML = itemSVG('food_bone')!;
         track.appendChild(node);
         treats.push({ node, x: width + 20, y: 70 + Math.random() * 40 });
       }
@@ -395,7 +417,8 @@ const runner: PlayMinigame = (stage, pet) =>
       }
       nextSpawn -= dt;
       if (nextSpawn <= 0) {
-        const node = el('div', 'mg-obstacle', ['🪵', '🪨', '🌵', '🚧'][spawned % 4]);
+        const node = el('div', 'mg-obstacle');
+        node.innerHTML = OBSTACLES[spawned % 4];
         track.appendChild(node);
         obstacles.push({ node, x: width + 20, hit: false });
         spawned++;

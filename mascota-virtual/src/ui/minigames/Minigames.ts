@@ -10,6 +10,7 @@ import type { Pet } from '../../systems/pet/Pet';
 import { petSVG } from '../common';
 import { play } from '../Feedback';
 import { burst, shake } from './Juice';
+import { itemSVG } from '../../sprites/ItemIcons';
 import { el, wait } from '../dom';
 
 export type Minigame = (stage: HTMLElement, pet: Pet) => Promise<number>;
@@ -84,7 +85,8 @@ const agility: Minigame = (stage, pet) =>
       // Generar obstáculos
       nextSpawn -= dt;
       if (spawned < TOTAL && nextSpawn <= 0) {
-        const node = el('div', 'mg-obstacle', ['🪵', '🪨', '🌵', '🚧'][spawned % 4]);
+        const node = el('div', 'mg-obstacle');
+        node.innerHTML = itemSVG(['mg_log', 'mg_rock', 'mg_cactus', 'mg_cone'][spawned % 4])!;
         track.appendChild(node);
         obstacles.push({ node, x: width + 20, hit: false, done: false });
         spawned++;

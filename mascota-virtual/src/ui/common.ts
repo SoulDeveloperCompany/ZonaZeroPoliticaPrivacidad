@@ -5,6 +5,7 @@ import { renderPetSVG } from '../sprites/PetSprite';
 import type { Pet, PetMood } from '../systems/pet/Pet';
 import { Sex, STAT_LABELS, type PetStatKey } from '../systems/pet/PetTypes';
 import { furnitureSVG } from '../sprites/Furniture';
+import { gameSVG, itemSVG } from '../sprites/ItemIcons';
 import { esc } from './dom';
 
 export interface Screen {
@@ -103,9 +104,20 @@ export function updateStatBars(root: HTMLElement, values: Partial<Record<PetStat
 
 /** Icono de un item: SVG para accesorios, emoji para el resto. */
 export function itemIcon(itemId: string): string {
-  const svg = accessoryIconSVG(itemId) ?? furnitureSVG(itemId);
+  const svg = accessoryIconSVG(itemId) ?? furnitureSVG(itemId) ?? itemSVG(itemId);
   if (svg) return `<span class="item-icon item-icon-svg">${svg}</span>`;
   return `<span class="item-icon">${esc(DataRegistry.instance.getItem(itemId).icon)}</span>`;
+}
+
+/** Icono pequeño de un objeto para usar dentro de una frase. */
+export function inlineItem(itemId: string): string {
+  const svg = itemSVG(itemId);
+  return svg ? `<span class="inline-obj">${svg}</span>` : esc(DataRegistry.instance.getItem(itemId).icon);
+}
+
+/** Icono de un juego o competencia (SVG propio o su emoji). */
+export function gameIcon(id: string, fallback: string): string {
+  return gameSVG(id) ?? fallback;
 }
 
 export function starsHTML(n: number, max = 5): string {
