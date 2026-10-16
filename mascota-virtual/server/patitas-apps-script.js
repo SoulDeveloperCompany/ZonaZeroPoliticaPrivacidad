@@ -348,6 +348,16 @@ function doPost(e) {
 
 // ---------- Diario con IA (opcional) ----------
 /**
+ * Ejecútala UNA VEZ desde el editor (selecciónala arriba y pulsa ▶ Ejecutar) después de poner ANTHROPIC_API_KEY:
+ * Google te pedirá permiso para "conectarse a un servicio externo" y verás en el registro una página de prueba.
+ */
+function probarIA() {
+  const yo = filas_('Jugadores')[0];
+  if (!yo) { Logger.log('Primero tiene que haber al menos un jugador sincronizado.'); return; }
+  const r = diario_({ id: yo.id, nombre: 'Prueba', especie: 'dog', registro: { acciones: { feed: 1, pet: 3 }, comidas: ['filete'] } });
+  Logger.log(r.ia ? 'IA OK: ' + r.texto : 'La IA no respondió (¿falta la clave o se pasó el tope diario?): ' + JSON.stringify(r));
+}
+/**
  * Escribe una página del diario con Claude a partir de lo que vivió la mascota ese día.
  * No recibe ningún texto escrito por el jugador: solo datos del juego (comidas, juegos, contadores).
  * Devuelve { ok: true, ia: false } si no hay clave, se pasó el tope o algo falla: el juego usa su diario local.
