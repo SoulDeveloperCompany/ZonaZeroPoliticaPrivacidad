@@ -52,3 +52,34 @@ Propiedades del script, nunca en la app) permitiría que la mascota escribiera u
 - **Público 13+**: mejor sin chat libre. Lo más seguro es el **diario** (la IA solo recibe los recuerdos de la mascota, sin texto del jugador).
 
 Recomendación: primero publicar y medir la v1.4.0 con la IA local. Si los jugadores responden bien, añadir el diario con IA como función Premium opcional.
+
+---
+
+# Ciclo 2 (16 oct, tarde): "sigue con todo lo que falta"
+
+| Debilidad del ciclo 1 | Qué se hizo | Comprobado |
+|---|---|---|
+| Emojis en comidas, objetos y juegos | 30 iconos SVG nuevos (comidas, salud, objetos que caen, obstáculos, vasos, tarjetas de juegos y competencias). En Memoria, las cartas son las mascotas del juego | Capturas |
+| Habla por plantilla, poco frecuente | Frases según carácter, hora del día, comida favorita y lo aprendido. Las peticiones se pueden tocar para atenderlas; si le haces caso, da las gracias (+felicidad). No insiste: como mucho una petición cada 25 s. Más variedad en los bebés | 3 tests nuevos + medición con `eval:` |
+| Sin conversación libre | **Diario**: cada día escribe una página con lo que vivió. Opcionalmente la escribe Claude en el servidor (v4), solo con datos del juego, con tope diario y botón 🚩 para denunciar | 10 pruebas de servidor (API simulada) + servidor v4 en marcha |
+| Rendimiento | Las barras de estado se reescribían cada segundo aunque estuvieran ocultas: ahora solo cambian si cambia el valor | Medido con un contador de cambios del DOM |
+| Detalles de diseño | Barras de habilidad sin colores de alarma, barra del baño visible, estados vacíos con huella | Capturas |
+
+Fallos encontrados al probar (y corregidos): las peticiones casi nunca aparecían (solo después de conductas que no fueran pasear);
+luego se repetían 7 veces seguidas; y el icono del filete parecía una lupa.
+
+## Autoevaluación (después del ciclo 2)
+| Criterio | Nota | Cambio |
+|---|---|---|
+| Diversión inmediata | 6,5 | = |
+| Calidad de las mecánicas | 6,5 | = |
+| Calidad artística | 7,5 | +0,5 (sin emojis sueltos en la interfaz) |
+| Personalidad | 8 | +0,5 (habla con carácter, pide y agradece, diario) |
+| Interfaz | 7 | = |
+| Progreso | 7 | = |
+| Rendimiento y estabilidad | 7,5 | +0,5 (menos trabajo en el DOM, 71 tests + 41 de servidor) |
+| Diferenciación comercial | 7 | +0,5 (diario compartible, IA opcional) |
+
+Las 3 debilidades que quedan: **(1)** sin prueba en un móvil real (sonido, música, vibración, fluidez); **(2)** la economía
+y los minijuegos de competición no se han reequilibrado; **(3)** contenido: 6 especies y 2 eventos al año.
+

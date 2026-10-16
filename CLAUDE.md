@@ -85,5 +85,8 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
   rutina, gustos, palabras y recuerdos), caricias por zonas, mirada que sigue el dedo, minijuegos con "jugo"
   (src/ui/minigames/Juice.ts), muebles SVG (src/sprites/Furniture.ts), música generativa (src/ui/Music.ts).
   Falta probar en móvil real: música, sonidos, vibración y fluidez de los minijuegos.
-- Opcional (decide el dueño): "Modo charla" con IA en la nube (Claude Haiku vía Apps Script). Ver docs/EVOLUCION-2026-10.md.
-- Ideas: notificaciones locales opcionales, más eventos de temporada, iconos SVG para comidas.
+- Servidor v4 desplegado (16 oct): diario con IA OPCIONAL (apagado hasta que el dueño ponga ANTHROPIC_API_KEY en
+  Propiedades del script y ejecute probarIA una vez) + pestaña Reportes (denuncias). Ver server/LEEME.md y play-store/FICHA.md.
+- Iconos: todo es SVG propio (src/ui/icons.ts, src/sprites/ItemIcons.ts, Furniture.ts) salvo emojis dentro de textos.
+- shot.mjs tiene paso `eval:<js>` para inspeccionar la página (p. ej. contar bocadillos de habla).
+- Ideas: notificaciones locales opcionales, más eventos de temporada, más especies.
