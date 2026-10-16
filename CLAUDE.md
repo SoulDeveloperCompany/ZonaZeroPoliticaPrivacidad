@@ -72,19 +72,13 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
   encuesta de apoyo única (`ui/Survey.ts`, evento `encuesta_apoyo`). No hay pagos: se decide con los datos.
 
 ## Pendiente
-- Prueba cerrada «Alpha»: v1.3.0 (código 412070) disponible para testers desde el 15 oct 2026.
-  Faltan 12 testers × 14 días y luego pedir acceso a producción. Nuevas versiones: Prueba cerrada › Crear nueva versión.
-- v1.4.0 (compras de Google Play + rediseño): compilar con COMPILAR PARA PLAY.bat y subirla a la prueba cerrada.
-  Después crear en Monetizar › Productos integrados `patitas_fundador` (2,99) y `patitas_deco_premium` (1,99),
-  actualizar la clasificación de contenido (compras: Sí), añadir testers de licencias y enviar Seguridad de los datos.
+- 16 oct 2026: v1.4.0 (código 415852) subida a Prueba cerrada «Alpha» + ficha nueva (6 capturas, textos) + clasificación
+  de contenido con compras: TODO GUARDADO, falta pulsar «Enviar 5 cambios a revisión» en Resumen de publicación (lo hace el dueño).
+- Productos únicos ACTIVOS: patitas_fundador 2,99 USD (9.500 COP) y patitas_deco_premium 1,99 USD (6.500 COP).
+  OJO: en la consola se escribe el precio con coma ("2,99"); con punto lo toma como 299.
+- Falta: testers de licencias (Configuración de la cuenta › Prueba de licencias) para comprar sin cobro real.
+- Prueba cerrada: 12 testers × 14 días y luego pedir acceso a producción.
 - Borrar filas de prueba de la hoja (Adopciones «Mamá» y jugadores de prueba).
-- Diseño (docs/PROMPT-AUDITORIA-DISENO.md): hechos los arreglos rápidos y los iconos SVG (src/ui/icons.ts) de
-  navegación, acciones, monedero y ajustes. Queda: iconos de comida/tienda (siguen siendo emoji), estados vacíos,
-  diseño de minijuegos (campo más grande, botón salir), barras de stats con colores menos alarmantes.
-- Evolución 16 oct 2026 (docs/EVOLUCION-2026-10.md): PetMind (src/systems/pet/PetMind.ts: aprende por refuerzo,
-  rutina, gustos, palabras y recuerdos), caricias por zonas, mirada que sigue el dedo, minijuegos con "jugo"
-  (src/ui/minigames/Juice.ts), muebles SVG (src/sprites/Furniture.ts), música generativa (src/ui/Music.ts).
-  Falta probar en móvil real: música, sonidos, vibración y fluidez de los minijuegos.
 - Servidor v4 desplegado (16 oct): diario con IA OPCIONAL (apagado hasta que el dueño ponga ANTHROPIC_API_KEY en
   Propiedades del script y ejecute probarIA una vez) + pestaña Reportes (denuncias). Ver server/LEEME.md y play-store/FICHA.md.
 - Iconos: todo es SVG propio (src/ui/icons.ts, src/sprites/ItemIcons.ts, Furniture.ts) salvo emojis dentro de textos.
