@@ -64,13 +64,19 @@ export const STAT_HELP: Record<PetStatKey, string> = {
 };
 
 /** Color continuo de la barra: verde (bien) → amarillo → rojo (mal). En hambre, llena = roja. */
+/** Habilidades: se entrenan y suben con el tiempo; tener poca no es una alarma. */
+const SKILLS: PetStatKey[] = ['agility', 'beauty'];
+
 export function statColor(key: PetStatKey, value: number): string {
+  if (key === 'agility') return 'linear-gradient(90deg, #6bb8ff, #4a90e2)';
+  if (key === 'beauty') return 'linear-gradient(90deg, #ff9ed2, #c77dff)';
   const good = key === 'hunger' ? 100 - value : value;
   return `hsl(${Math.round((good / 100) * 120)} 70% 50%)`;
 }
 
 /** Nivel de alerta de un stat (en hambre, alto es malo). */
 export function statLevel(key: PetStatKey, value: number): 'good' | 'mid' | 'bad' {
+  if (SKILLS.includes(key)) return 'good';
   const v = key === 'hunger' ? 100 - value : value;
   if (v >= 60) return 'good';
   if (v >= 30) return 'mid';

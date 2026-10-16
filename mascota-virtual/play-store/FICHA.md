@@ -92,3 +92,12 @@ Solo se pueden crear después de subir un `.aab` que incluya `@capgo/native-purc
 - Al activar productos: actualizar **Clasificación del contenido** (pregunta de compras digitales → Sí) y revisar que la ficha muestre "Compras en la aplicación".
 - Probar con **testers con licencia** (Play Console › Configuración › Pruebas de licencias) antes de producción.
 - Precios en Play Console: escribir 2,99 con coma (como en Mi Zoológico).
+
+## Diario con IA (opcional, desde el servidor v4)
+Solo aplica si añades `ANTHROPIC_API_KEY` en las Propiedades del script (ver `server/patitas-apps-script.js`).
+1. **Contenido de la app › Contenido generado por IA**: declarar que la app genera texto con IA (páginas del diario).
+   Ya incluye lo que pide Google: botón 🚩 para denunciar cada página escrita con IA (llegan a la pestaña *Reportes* de la hoja).
+2. **Seguridad de los datos**: "Actividad en apps › Otras acciones del usuario" se comparte con un proveedor de servicios
+   (Anthropic) para "Funcionalidad de la app". No se envía texto escrito por el jugador.
+3. La política de privacidad ya lo explica (sección "La mascota que aprende y su diario", 16 oct 2026).
+4. Coste: cada página es una llamada corta; tope de 3 por jugador y día. Para gastar menos, pon `MODELO_IA = claude-haiku-5-5`.

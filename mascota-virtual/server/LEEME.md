@@ -56,3 +56,9 @@ Si cambias el script más adelante: **Implementar › Gestionar implementaciones
   `src/systems/online/OnlineService.ts`, así que el cambio queda en un único archivo).
 - La versión que se publica como artefacto de Claude no puede conectarse a servidores externos
   (lo bloquea el visor); el multijugador funciona en el APK y en el navegador normal.
+
+## Diario con IA (opcional, v4)
+Sin hacer nada, el diario de la mascota lo escribe el propio juego (gratis).
+Para que lo escriba Claude: Apps Script › ⚙️ Configuración del proyecto › Propiedades del script ›
+añade `ANTHROPIC_API_KEY` (tu clave de https://console.anthropic.com). Opcional: `MODELO_IA`
+(por defecto `claude-opus-5-5`; `claude-haiku-5-5` cuesta mucho menos). Las denuncias de páginas llegan a la pestaña **Reportes**.
