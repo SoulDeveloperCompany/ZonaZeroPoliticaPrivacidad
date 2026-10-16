@@ -42,7 +42,7 @@ export interface GameData {
   /** Compras de Google Play activas (ids de producto, ver data/premium.ts). */
   entitlements: string[];
   /** Preferencias del jugador (Ajustes). */
-  settings: { sound: boolean; haptics: boolean };
+  settings: { sound: boolean; haptics: boolean; music?: boolean };
   /** Récord por minijuego. */
   gameRecords: Record<string, number>;
   /** Monedas ganadas hoy por minijuego (tope diario). */
@@ -78,7 +78,7 @@ export function createEmptyGameData(now: number): GameData {
     competitionCooldowns: {},
     counters: { actions: 0, competitions: 0, births: 0, rescues: 0 },
     tutorialDone: false,
-    settings: { sound: true, haptics: true },
+    settings: { sound: true, haptics: true, music: true },
     decor: { ...DEFAULT_DECOR },
     decorOwned: Object.values(DEFAULT_DECOR),
     collection: {},

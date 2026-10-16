@@ -14,6 +14,7 @@ import { PLAY_MINIGAMES } from './minigames/PlayGames';
 import { confetti } from './Celebration';
 import { feedback } from './Feedback';
 import { Analytics } from '../systems/online/Analytics';
+import { duckMusic } from './Music';
 import { showModal, showToast } from './Overlay';
 
 const REASON: Record<string, string> = {
@@ -68,6 +69,7 @@ async function runGame(pet: Pet, gameId: string): Promise<void> {
   const overlay = el('div', 'minigame');
   overlay.innerHTML = `<div class="mg-top"><div class="mg-title">${game.icon} ${esc(game.name)}</div><button class="btn btn-sm" data-exit>✕ Salir</button></div><div class="mg-stage"></div>`;
   document.body.appendChild(overlay);
+  duckMusic(true);
   let quit = false;
   const quitP = new Promise<null>((res) =>
     overlay.querySelector('[data-exit]')!.addEventListener('click', () => {
@@ -77,6 +79,7 @@ async function runGame(pet: Pet, gameId: string): Promise<void> {
   );
   const score = await Promise.race([PLAY_MINIGAMES[gameId](overlay.querySelector('.mg-stage') as HTMLElement, pet), quitP]);
   overlay.remove();
+  duckMusic(false);
   if (quit || score === null) return;
   const prevRecord = GamesSystem.instance.record(gameId);
   const r = GamesSystem.instance.finish(pet.id, gameId, score);

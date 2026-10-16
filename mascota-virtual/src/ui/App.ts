@@ -32,6 +32,7 @@ import { maybeAskSupportSurvey } from './Survey';
 import { PRODUCTS } from '../data/premium';
 import { hasIcon, icon } from './icons';
 import { PetMind } from '../systems/pet/PetMind';
+import { musicEnabled, setupMusic, startMusic, stopMusic } from './Music';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -138,6 +139,7 @@ export class App {
     bus.on('adoption:completed', ({ petName, coins }) => showToast(`🤝 ${petName} encontró un nuevo hogar. +${coins} 🪙`, 'good'));
 
     this.updateWallet();
+    setupMusic();
     setInterval(() => this.current?.tick?.(), 1000);
     void GameManager.instance.syncOnline();
     this.setupBackButton();
@@ -263,6 +265,7 @@ export class App {
         <div class="settings-toggles">
           <label class="field-row"><input type="checkbox" data-act="sound" ${GameState.instance.data.settings.sound ? 'checked' : ''}> 🔊 Sonidos</label>
           <label class="field-row"><input type="checkbox" data-act="haptics" ${GameState.instance.data.settings.haptics ? 'checked' : ''}> 📳 Vibración</label>
+          <label class="field-row"><input type="checkbox" data-act="music" ${musicEnabled() ? 'checked' : ''}> 🎵 Música</label>
         </div>
         <div class="settings-list">
           <button class="btn" data-act="save">💾 Guardar ahora</button>
@@ -281,6 +284,12 @@ export class App {
         <p class="hint center settings-version">Patitas v${esc(String(import.meta.env.VITE_APP_VERSION ?? ''))} · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
       onAction: (act, _t, modal) => {
+        if (act === 'music') {
+          GameState.instance.data.settings.music = (modal.body.querySelector('[data-act="music"]') as HTMLInputElement).checked;
+          if (musicEnabled()) startMusic();
+          else stopMusic();
+          return true;
+        }
         if (act === 'sound' || act === 'haptics') {
           GameState.instance.data.settings[act] = (modal.body.querySelector(`[data-act="${act}"]`) as HTMLInputElement).checked;
           return true;

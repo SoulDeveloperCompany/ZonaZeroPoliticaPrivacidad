@@ -81,4 +81,9 @@ El usuario quiere gastar pocos tokens: respuestas cortas, no leer archivos enter
 - Diseño (docs/PROMPT-AUDITORIA-DISENO.md): hechos los arreglos rápidos y los iconos SVG (src/ui/icons.ts) de
   navegación, acciones, monedero y ajustes. Queda: iconos de comida/tienda (siguen siendo emoji), estados vacíos,
   diseño de minijuegos (campo más grande, botón salir), barras de stats con colores menos alarmantes.
-- Ideas: notificaciones locales opcionales, música ambiente, más eventos de temporada.
+- Evolución 16 oct 2026 (docs/EVOLUCION-2026-10.md): PetMind (src/systems/pet/PetMind.ts: aprende por refuerzo,
+  rutina, gustos, palabras y recuerdos), caricias por zonas, mirada que sigue el dedo, minijuegos con "jugo"
+  (src/ui/minigames/Juice.ts), muebles SVG (src/sprites/Furniture.ts), música generativa (src/ui/Music.ts).
+  Falta probar en móvil real: música, sonidos, vibración y fluidez de los minijuegos.
+- Opcional (decide el dueño): "Modo charla" con IA en la nube (Claude Haiku vía Apps Script). Ver docs/EVOLUCION-2026-10.md.
+- Ideas: notificaciones locales opcionales, más eventos de temporada, iconos SVG para comidas.
