@@ -352,30 +352,39 @@ function doPost(e) {
  * Google te pedirá permiso para "conectarse a un servicio externo" y verás en el registro una página de prueba.
  */
 function probarIA() {
+  const clave = String(PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY') || '').trim();
+  const nombres = PropertiesService.getScriptProperties().getKeys();
+  // Nunca se muestra la clave: solo si existe, su longitud y si tiene el formato esperado
+  Logger.log('Propiedades del script: ' + JSON.stringify(nombres));
+  Logger.log('ANTHROPIC_API_KEY: ' + (clave ? 'presente, ' + clave.length + ' caracteres, formato ' + (clave.indexOf('sk-ant-') === 0 ? 'correcto (sk-ant-…)' : 'RARO (debería empezar por sk-ant-)') : 'NO ENCONTRADA'));
   const yo = filas_('Jugadores')[0];
   if (!yo) { Logger.log('Primero tiene que haber al menos un jugador sincronizado.'); return; }
-  const r = diario_({ id: yo.id, nombre: 'Prueba', especie: 'dog', registro: { acciones: { feed: 1, pet: 3 }, comidas: ['filete'] } });
-  Logger.log(r.ia ? 'IA OK: ' + r.texto : 'La IA no respondió (¿falta la clave o se pasó el tope diario?): ' + JSON.stringify(r));
+  const r = diario_({ id: yo.id, nombre: 'Prueba', especie: 'dog', registro: { acciones: { feed: 1, pet: 3 }, comidas: ['filete'] } }, true);
+  Logger.log(r.ia ? 'IA OK: ' + r.texto : 'La IA no respondió. Motivo: ' + r.motivo);
 }
 /**
  * Escribe una página del diario con Claude a partir de lo que vivió la mascota ese día.
  * No recibe ningún texto escrito por el jugador: solo datos del juego (comidas, juegos, contadores).
  * Devuelve { ok: true, ia: false } si no hay clave, se pasó el tope o algo falla: el juego usa su diario local.
  */
-function diario_(d) {
-  const clave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
-  if (!clave) return { ok: true, ia: false };
+function diario_(d, depurar) {
+  // depurar = true solo desde probarIA: explica el motivo de cada fallo y no gasta el tope diario
+  const no = (motivo) => (depurar ? { ok: true, ia: false, motivo: motivo } : { ok: true, ia: false });
+  const clave = String(PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY') || '').trim();
+  if (!clave) return no('no hay ANTHROPIC_API_KEY en las Propiedades del script');
   // Tope diario por jugador (con candado solo lo justo)
   const candado = LockService.getScriptLock();
   candado.waitLock(10000);
   try {
     const yo = jugador_(d.id);
-    if (!yo) return { ok: true, ia: false };
-    const l = limites_(yo);
-    if ((l.diarios || 0) >= DIARIOS_DIA) return { ok: true, ia: false };
-    l.diarios = (l.diarios || 0) + 1;
-    yo.limites = JSON.stringify(l);
-    escribir_('Jugadores', yo);
+    if (!yo) return no('jugador no sincronizado');
+    if (!depurar) {
+      const l = limites_(yo);
+      if ((l.diarios || 0) >= DIARIOS_DIA) return no('tope diario');
+      l.diarios = (l.diarios || 0) + 1;
+      yo.limites = JSON.stringify(l);
+      escribir_('Jugadores', yo);
+    }
   } finally {
     candado.releaseLock();
   }
@@ -422,13 +431,17 @@ function diario_(d) {
       headers: cabeceras,
       payload: JSON.stringify(cuerpo),
     });
-    if (res.getResponseCode() !== 200) return { ok: true, ia: false };
+    if (res.getResponseCode() !== 200) {
+      let detalle = '';
+      try { const e = JSON.parse(res.getContentText()).error || {}; detalle = (e.type || '') + ': ' + (e.message || ''); } catch (x) { detalle = res.getContentText().slice(0, 200); }
+      return no('la API respondió ' + res.getResponseCode() + ' (' + detalle + ')');
+    }
     const m = JSON.parse(res.getContentText());
-    if (m.stop_reason === 'refusal') return { ok: true, ia: false };
+    if (m.stop_reason === 'refusal') return no('la IA se negó (refusal)');
     const texto = (m.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-    return texto ? { ok: true, ia: true, texto: texto_(texto, 600) } : { ok: true, ia: false };
+    return texto ? { ok: true, ia: true, texto: texto_(texto, 600) } : no('respuesta sin texto (stop_reason: ' + m.stop_reason + ')');
   } catch (err) {
-    return { ok: true, ia: false };
+    return no('error al llamar a la API: ' + err);
   }
 }
 
