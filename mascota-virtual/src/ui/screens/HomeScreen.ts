@@ -37,6 +37,9 @@ import { MissionSystem } from '../../systems/games/MissionSystem';
 import { chooseName } from '../NameChooser';
 import { getTrait } from '../../data/traits';
 import { BondSystem } from '../../systems/pet/BondSystem';
+import { Share } from '@capacitor/share';
+import { OnlineConfig } from '../../core/OnlineConfig';
+import { Analytics } from '../../systems/online/Analytics';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -233,6 +236,7 @@ export class HomeScreen implements Screen {
         </div>
         <button class="stats-btn" data-act="stats" aria-label="Ver estado">📊<span class="stats-alert" hidden></span></button>
         <button class="stats-btn missions-btn" data-act="missions" aria-label="Misiones">📋<span class="missions-badge" hidden></span></button>
+        <button class="stats-btn share-btn" data-act="share" aria-label="Compartir">📤</button>
         <div class="need-bubble" hidden></div>
         <div class="pet-stage-wrap"><div class="pet-sprite" data-act="pet-touch"></div></div>
         <div class="fx-layer"></div>
@@ -435,6 +439,9 @@ export class HomeScreen implements Screen {
         return;
       case 'action':
         if (pet) this.doAction(pet, t.dataset.id!);
+        return;
+      case 'share':
+        if (pet) void sharePet(pet);
         return;
       case 'backpack':
         if (pet) openBackpack(pet);
@@ -667,4 +674,22 @@ export function openBackpack(pet: Pet): void {
       return true;
     },
   });
+}
+
+/** Compartir la mascota con amigos (texto + enlace a Google Play). Es la forma más barata de crecer. */
+async function sharePet(pet: Pet): Promise<void> {
+  const sp = pet.species;
+  const etapa = DataRegistry.instance.getStage(pet.stage).name.toLowerCase();
+  const text = `🐾 Mira a ${pet.name}, mi ${sp.name.toLowerCase()} ${etapa} en Patitas (vínculo ${Math.round(pet.data.bond)} 💞). ¡Adopta tu mascota y visítanos en el parque!`;
+  Analytics.instance.track('compartir', pet.data.speciesId);
+  try {
+    await Share.share({ title: 'Patitas', text, url: OnlineConfig.SHARE_URL, dialogTitle: 'Compartir a tu mascota' });
+  } catch {
+    try {
+      await navigator.clipboard.writeText(`${text} ${OnlineConfig.SHARE_URL}`);
+      showToast('📋 Texto copiado: pégalo donde quieras', 'good');
+    } catch {
+      showToast('No se pudo compartir en este dispositivo', 'bad');
+    }
+  }
 }

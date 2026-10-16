@@ -605,3 +605,23 @@ small { color: var(--muted); }
 /* ---------- Desafío semanal (Auditoría P12) ---------- */
 .challenge { margin-bottom: 10px; }
 .challenge .bond-row { margin: 6px 0 2px; }
+
+/* ---------- Tienda Premium y eventos de temporada ---------- */
+.tab-premium { background: linear-gradient(135deg, #ffe08a, #ffb86b); color: #6b3a16; }
+.tab-premium.active { background: linear-gradient(135deg, #ffb86b, #ff8a3d); color: #fff; }
+.event-banner { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; border-radius: 18px; padding: 10px 12px; margin-bottom: 10px;
+  background: linear-gradient(135deg, #3b2a4a, #6a3f8a); color: #fff; box-shadow: var(--shadow); }
+.event-banner small { display: block; color: #f3e6ff; font-size: 12px; }
+.event-icon { font-size: 34px; animation: bob 2s ease-in-out infinite; }
+.premium-intro { background: linear-gradient(135deg, #fff4e6, #ffe9f2); border-radius: 18px; padding: 12px 14px; margin-bottom: 10px; }
+.premium-card { background: var(--card); border-radius: 20px; padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow); border: 2px solid #ffe08a; }
+.premium-card.owned { border-color: var(--good); }
+.premium-head { display: flex; gap: 10px; align-items: flex-start; }
+.premium-head small { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+.premium-icon { font-size: 38px; line-height: 1; }
+.premium-items { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.premium-stars { font-weight: 900; color: var(--primary-dark); background: #fff4e6; border-radius: 999px; padding: 4px 10px; }
+.premium-btn { background: linear-gradient(135deg, #ffb86b, #ff6f91); box-shadow: 0 3px 0 #d94f73; font-size: 15px; padding: 10px; }
+.restore-btn { display: block; margin: 4px auto 8px; }
+@media (prefers-reduced-motion: reduce) { .event-icon { animation: none; } }
+.share-btn { top: 118px; }

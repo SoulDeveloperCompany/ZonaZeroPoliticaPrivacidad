@@ -94,6 +94,10 @@ export interface ItemDefinition {
   free?: boolean;
   /** Decoración de la casa: hueco y colores del tema (ver data/decor.ts). */
   decor?: { slot: 'pared' | 'suelo' | 'alfombra'; colors: string[] };
+  /** Solo se consigue con esta compra de Google Play (ver data/premium.ts). */
+  premium?: string;
+  /** Solo se vende mientras dura este evento de temporada (ver data/premium.ts). */
+  event?: string;
 }
 
 export type MinigameType = 'agility' | 'beauty' | 'tricks';

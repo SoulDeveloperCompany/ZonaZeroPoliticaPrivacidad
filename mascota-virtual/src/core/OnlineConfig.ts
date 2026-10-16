@@ -8,4 +8,6 @@ export const OnlineConfig = {
   /** Cada cuánto se sincroniza mientras la app está abierta. */
   SYNC_EVERY_MS: 3 * 60 * 1000,
   TIMEOUT_MS: 15_000,
+  /** Enlace que se comparte para invitar a amigos (ficha de Google Play). */
+  SHARE_URL: 'https://play.google.com/store/apps/details?id=com.souldevelopercompany.patitas',
 };

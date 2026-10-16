@@ -29,6 +29,7 @@ import { feedback, play, type SoundId } from './Feedback';
 import { Tutorial } from './Tutorial';
 import { BondSystem } from '../systems/pet/BondSystem';
 import { maybeAskSupportSurvey } from './Survey';
+import { PRODUCTS } from '../data/premium';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -100,6 +101,11 @@ export class App {
     bus.on('collection:new', ({ petId, rare }) => {
       const pet = PetManager.instance.get(petId);
       if (pet && rare) celebrate({ pet, title: '✨ ¡Pelaje raro!', text: `${esc(pet.name)} tiene un color que muy pocos consiguen. Ya está en tu libro de pelajes.` });
+    });
+    bus.on('store:granted', ({ productId }) => {
+      const pet = PetManager.instance.selected;
+      const p = PRODUCTS.find((x) => x.id === productId);
+      if (pet && p) celebrate({ pet, title: `${p.icon} ¡Gracias por tu apoyo!`, text: `Ya tienes <b>${esc(p.name)}</b>. Lo encontrarás en la tienda (Decoración) y en la mochila.` });
     });
     bus.on('breeding:born', ({ babyId }) => {
       const baby = PetManager.instance.get(babyId);

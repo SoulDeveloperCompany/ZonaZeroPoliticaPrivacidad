@@ -47,6 +47,8 @@ export interface GameEvents {
   'economy:purchase': { itemId: string };
   'decor:changed': { itemId: string };
   'collection:new': { petId: string; rare: boolean };
+  'store:changed': { status: string };
+  'store:granted': { productId: string };
 
   // --- Competencias ---
   'competition:finished': {

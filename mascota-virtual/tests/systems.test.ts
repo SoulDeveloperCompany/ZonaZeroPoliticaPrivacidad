@@ -720,3 +720,40 @@ describe('Comunidad: desafío semanal', () => {
     expect(Community.instance.claim()).toBe(false); // solo una vez
   });
 });
+
+describe('Premium y eventos de temporada', () => {
+  it('una compra de Google Play desbloquea sus objetos y estrellas una sola vez', () => {
+    const eco = EconomySystem.instance;
+    const estrellas = eco.stars;
+    expect(eco.buy('acc_founder').ok).toBe(false); // lo de pago no se compra con monedas
+    expect(eco.grantEntitlement('patitas_fundador')).toBe(true);
+    expect(eco.quantity('acc_founder')).toBe(1);
+    expect(GameState.instance.data.decorOwned).toContain('pared_aurora');
+    expect(eco.stars).toBe(estrellas + 30);
+    expect(eco.grantEntitlement('patitas_fundador')).toBe(false);
+    expect(eco.stars).toBe(estrellas + 30);
+    expect(eco.applyDecor('pared_aurora')).toBe(true);
+  });
+
+  it('lo de pago solo aparece en la tienda normal cuando ya lo tienes', () => {
+    const eco = EconomySystem.instance;
+    expect(eco.shopItems('decor').some((i) => i.id === 'pared_oceano')).toBe(false);
+    eco.grantEntitlement('patitas_deco_premium');
+    expect(eco.shopItems('decor').some((i) => i.id === 'pared_oceano')).toBe(true);
+  });
+
+  it('los objetos de evento solo se venden durante el evento', () => {
+    const eco = EconomySystem.instance;
+    eco.addCoins(5000);
+    Clock.setNow(new Date('2026-10-20T12:00:00').getTime());
+    expect(eco.eventActive('halloween')).toBe(true);
+    expect(eco.shopItems('decor').some((i) => i.id === 'pared_halloween')).toBe(true);
+    Clock.setNow(new Date('2026-12-20T12:00:00').getTime());
+    expect(eco.eventActive('halloween')).toBe(false);
+    expect(eco.eventActive('navidad')).toBe(true);
+    expect(eco.buy('pared_halloween').ok).toBe(false);
+    Clock.setNow(new Date('2027-01-03T12:00:00').getTime());
+    expect(eco.eventActive('navidad')).toBe(true); // cruza el año
+    Clock.setNow(now);
+  });
+});

@@ -39,6 +39,8 @@ export interface GameData {
   community: { pending: Record<string, number>; week: string; mine: number; claimed: string[]; last: Challenge | null };
   /** Encuesta de apoyo ya respondida (experimento de monetización, ver ui/Survey.ts). */
   surveyDone: boolean;
+  /** Compras de Google Play activas (ids de producto, ver data/premium.ts). */
+  entitlements: string[];
   /** Preferencias del jugador (Ajustes). */
   settings: { sound: boolean; haptics: boolean };
   /** Récord por minijuego. */
@@ -83,6 +85,7 @@ export function createEmptyGameData(now: number): GameData {
     collectionRewards: [],
     community: { pending: {}, week: '', mine: 0, claimed: [], last: null },
     surveyDone: false,
+    entitlements: [],
     gameRecords: {},
     gamesToday: { day: '', coins: {} },
     vitaminsToday: { day: '', count: 0 },

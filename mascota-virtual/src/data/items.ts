@@ -212,6 +212,14 @@ export const ITEMS: ItemDefinition[] = [
     slot: 'neck',
     beautyBonus: 10,
   },
+  { id: 'acc_beanie', name: 'Gorro de lana', description: 'Calentito para el invierno.', category: 'accessory', icon: '🧶', price: { coins: 140 }, slot: 'head', beautyBonus: 4 },
+  { id: 'acc_partyhat', name: 'Gorro de fiesta', description: '¡Para los cumpleaños!', category: 'accessory', icon: '🥳', price: { coins: 110 }, slot: 'head', beautyBonus: 4 },
+  { id: 'acc_catears', name: 'Diadema de orejitas', description: 'Más tierno imposible.', category: 'accessory', icon: '🐱', price: { coins: 180 }, slot: 'head', beautyBonus: 5 },
+  { id: 'acc_heartglasses', name: 'Gafas de corazón', description: 'Todo se ve con amor.', category: 'accessory', icon: '💗', price: { coins: 170 }, slot: 'face', beautyBonus: 6 },
+  { id: 'acc_bandana', name: 'Pañuelo', description: 'Estilo aventurero.', category: 'accessory', icon: '🧣', price: { coins: 90 }, slot: 'neck', beautyBonus: 4 },
+  { id: 'acc_medal', name: 'Medalla de oro', description: 'Para los campeones de verdad.', category: 'accessory', icon: '🏅', price: { stars: 6 }, slot: 'neck', beautyBonus: 8 },
+  { id: 'acc_witch', name: 'Sombrero de bruja', description: 'Edición limitada de Halloween.', category: 'accessory', icon: '🧙', price: { stars: 4 }, slot: 'head', beautyBonus: 7, event: 'halloween' },
+  { id: 'acc_founder', name: 'Corona de fundador', description: 'Exclusiva del Paquete Fundador. ¡Gracias por apoyar Patitas!', category: 'accessory', icon: '🌟', price: {}, slot: 'head', beautyBonus: 10, premium: 'patitas_fundador' },
 
   // ---------- Muebles (bonus pasivos) ----------
   {

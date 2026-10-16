@@ -14,6 +14,7 @@ import { DataRegistry } from '../../data/DataRegistry';
 import type { ItemCategory, ItemDefinition, Price, StatDeltas } from '../../data/types';
 import { GrowthSystem } from '../growth/GrowthSystem';
 import { PetManager } from '../pet/PetManager';
+import { PRODUCTS, SEASONAL_EVENTS, isEventActive } from '../../data/premium';
 import { STAGE_ORDER } from '../pet/PetTypes';
 
 export type BuyResult = { ok: true } | { ok: false; reason: 'funds' | 'owned' | 'invalid' };
@@ -136,13 +137,41 @@ export class EconomySystem {
 
   /** Items en venta de una categoría. */
   shopItems(category: ItemCategory): ItemDefinition[] {
-    return DataRegistry.instance.allItems().filter((i) => i.category === category && !i.free);
+    const now = new Date(Clock.now());
+    return DataRegistry.instance.allItems().filter((i) => {
+      if (i.category !== category || i.free) return false;
+      if (i.premium) return this.owns(i.id); // lo de pago solo aparece si ya lo tienes (se compra en Premium)
+      if (i.event) return this.owns(i.id) || this.eventActive(i.event, now);
+      return true;
+    });
+  }
+
+  /** ¿Está activo este evento de temporada? */
+  eventActive(eventId: string, now = new Date(Clock.now())): boolean {
+    const ev = SEASONAL_EVENTS.find((e) => e.id === eventId);
+    return !!ev && isEventActive(ev, now);
+  }
+
+  /** Activa una compra de Google Play: desbloquea sus objetos (y las estrellas de regalo, una vez). */
+  grantEntitlement(productId: string): boolean {
+    const p = PRODUCTS.find((x) => x.id === productId);
+    if (!p || this.state.entitlements.includes(productId)) return false;
+    this.state.entitlements.push(productId);
+    for (const id of p.items) {
+      const item = DataRegistry.instance.getItem(id);
+      if (item.category === 'decor' && !this.state.decorOwned.includes(id)) this.state.decorOwned.push(id);
+      else if (item.category === 'accessory' && this.quantity(id) === 0) this.addItem(id);
+    }
+    if (p.stars) this.addStars(p.stars);
+    EventBus.instance.emit('economy:walletChanged', { coins: this.coins, stars: this.stars });
+    return true;
   }
 
   buy(itemId: string): BuyResult {
     if (!DataRegistry.instance.hasItem(itemId)) return { ok: false, reason: 'invalid' };
     const item = DataRegistry.instance.getItem(itemId);
-    if (item.free) return { ok: false, reason: 'invalid' };
+    if (item.free || item.premium) return { ok: false, reason: 'invalid' };
+    if (item.event && !this.eventActive(item.event)) return { ok: false, reason: 'invalid' };
     if (this.owns(itemId)) return { ok: false, reason: 'owned' };
     if (!this.pay(item.price)) return { ok: false, reason: 'funds' };
     if (item.category === 'furniture') {
