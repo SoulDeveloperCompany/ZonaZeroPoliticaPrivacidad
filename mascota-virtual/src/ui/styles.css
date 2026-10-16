@@ -765,3 +765,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .runner-track .hills, .runner-track .bushes { bottom: 64px; }
 .runner-track .hills { height: 150px; background-size: 340px 150px; background-image: radial-gradient(ellipse 170px 150px at 170px 100%, #a6e39a 98%, transparent 100%); }
 .runner-track::before { content: '☀️'; position: absolute; top: 18px; right: 22px; font-size: 44px; filter: drop-shadow(0 0 14px rgba(255,210,60,0.8)); }
+
+/* Resultado de minijuego */
+.game-result .modal { text-align: center; }
+.result-pet { width: 120px; height: 120px; margin: 0 auto; animation: celebrateHop 1.2s ease-in-out infinite; }
+.result-pet svg { width: 100%; height: 100%; }
+.result-verdict { font-size: 24px; font-weight: 900; color: var(--primary-ink); margin-top: 4px; animation: popIn 0.35s ease-out; }
+.result-verdict.record { color: #d18a00; text-shadow: 0 0 12px rgba(255,200,0,0.5); }
+.result-score { margin: 2px 0; font-size: 18px; }
+.result-score b { font-size: 44px; font-weight: 900; color: var(--ink); }

@@ -8,9 +8,12 @@ import { GamesSystem } from '../systems/games/GamesSystem';
 import { MissionSystem } from '../systems/games/MissionSystem';
 import type { Pet } from '../systems/pet/Pet';
 import type { PetStatKey } from '../systems/pet/PetTypes';
-import { STAT_ICONS } from './common';
+import { STAT_ICONS, petSVG } from './common';
 import { el, esc } from './dom';
 import { PLAY_MINIGAMES } from './minigames/PlayGames';
+import { confetti } from './Celebration';
+import { feedback } from './Feedback';
+import { Analytics } from '../systems/online/Analytics';
 import { showModal, showToast } from './Overlay';
 
 const REASON: Record<string, string> = {
@@ -75,15 +78,24 @@ async function runGame(pet: Pet, gameId: string): Promise<void> {
   const score = await Promise.race([PLAY_MINIGAMES[gameId](overlay.querySelector('.mg-stage') as HTMLElement, pet), quitP]);
   overlay.remove();
   if (quit || score === null) return;
+  const prevRecord = GamesSystem.instance.record(gameId);
   const r = GamesSystem.instance.finish(pet.id, gameId, score);
   const effects = (Object.entries(r.deltas) as [PetStatKey, number][])
     .filter(([, v]) => Math.abs(v) >= 1)
     .map(([k, v]) => `${v > 0 ? '+' : ''}${Math.round(v)} ${STAT_ICONS[k]}`)
     .join(' · ');
-  showModal({
+  // Valoración respecto a tu récord anterior (el primer intento siempre es "¡Muy bien!")
+  const ratio = prevRecord > 0 ? r.score / prevRecord : r.score > 0 ? 0.8 : 0;
+  const verdict = r.score === 0 ? '¡Buen intento!' : r.record && prevRecord > 0 ? '¡Nuevo récord!' : ratio >= 0.75 ? '¡Muy bien!' : ratio >= 0.4 ? '¡Bien jugado!' : '¡Buen intento!';
+  feedback(r.record ? 'level' : 'coin', r.record ? 'success' : 'light');
+  const modal = showModal({
     title: `${game.icon} ${esc(game.name)}`,
-    body: `<div class="result-stars">${r.record ? '🏆' : '🎉'}</div>
-      <p class="center"><b>${r.score} ${game.unit}</b>${r.record ? ' · ¡Nuevo récord!' : ` · Récord: ${GamesSystem.instance.record(gameId)}`}</p>
+    className: r.record && prevRecord > 0 ? 'celebration game-result' : 'game-result',
+    body: `${r.record && prevRecord > 0 ? confetti() : ''}
+      <div class="result-pet">${petSVG(pet, '', 'happy')}</div>
+      <div class="result-verdict ${r.record && prevRecord > 0 ? 'record' : ''}">${verdict}</div>
+      <p class="result-score"><b data-count="${r.score}">0</b> <span>${esc(game.unit)}</span></p>
+      <p class="hint center">${r.record && prevRecord > 0 ? `Antes: ${prevRecord}` : `Récord: ${GamesSystem.instance.record(gameId)}`}</p>
       <p class="center reward">+${r.coins} 🪙</p>
       ${r.capped ? '<p class="hint center">Ya llegaste al tope de monedas de hoy en este juego. ¡Prueba otro!</p>' : ''}
       <p class="center">${effects}</p>`,
@@ -93,11 +105,24 @@ async function runGame(pet: Pet, gameId: string): Promise<void> {
     ],
     onAction: (act) => {
       if (act !== 'again') return;
+      Analytics.instance.track('juego_otra_vez', gameId);
       const check = GamesSystem.instance.canPlay(pet, gameId);
       if (check.ok) void runGame(pet, gameId);
       else showToast(REASON[check.reason], 'bad');
     },
   });
+  // La puntuación cuenta hacia arriba (más satisfactorio que aparecer de golpe)
+  const num = modal.body.querySelector<HTMLElement>('[data-count]');
+  if (num) {
+    const target = r.score;
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / 700);
+      num.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (p < 1 && num.isConnected) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
 }
 
 /** Ventana de misiones diarias. */

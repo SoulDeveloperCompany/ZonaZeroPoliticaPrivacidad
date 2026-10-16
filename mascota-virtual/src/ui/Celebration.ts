@@ -26,7 +26,7 @@ const FEATURE_NAMES: Record<string, string> = {
 
 const CONFETTI = ['🎉', '✨', '🎊', '⭐', '💛', '🐾'];
 
-function confetti(): string {
+export function confetti(): string {
   return `<div class="confetti" aria-hidden="true">${Array.from({ length: 18 }, (_, i) =>
     `<span style="left:${(i * 37) % 100}%;animation-delay:${(i % 6) * 0.12}s">${CONFETTI[i % CONFETTI.length]}</span>`).join('')}</div>`;
 }
