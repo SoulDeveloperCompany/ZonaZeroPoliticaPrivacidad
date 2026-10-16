@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galería de sprites</title>
+    <style>
+      body { font-family: system-ui, sans-serif; background: #fdf3e7; margin: 16px; color: #3a2a20; }
+      h2 { margin: 20px 0 6px; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; }
+      .cell { width: 120px; text-align: center; font-size: 11px; background: #fff; border-radius: 12px; padding: 4px; }
+      .cell svg { width: 112px; height: 112px; display: block; }
+    </style>
+  </head>
+  <body>
+    <h1>Galería de sprites (base)</h1>
+    <div id="gallery"></div>
+    <script type="module" src="/src/spriteGallery.ts"></script>
+  </body>
+</html>

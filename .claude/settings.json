@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run -s mapa:*)",
+      "Bash(npm run -s revisar)",
+      "Bash(npm run -s shot:*)",
+      "Bash(npm run artifact)",
+      "Bash(npm test)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run test:server)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ]
+  }
+}

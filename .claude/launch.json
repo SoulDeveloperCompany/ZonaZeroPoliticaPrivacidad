@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "patitas",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mascota-virtual", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

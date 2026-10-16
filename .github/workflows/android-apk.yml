@@ -1,0 +1,54 @@
+# Compila el APK de depuración del juego de mascota virtual (carpeta mascota-virtual/).
+# El APK queda como artefacto descargable en la pestaña "Actions" de GitHub.
+name: Android APK
+
+on:
+  push:
+    paths:
+      - 'mascota-virtual/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'mascota-virtual/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mascota-virtual
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mascota-virtual/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # El SDK de Android ya viene instalado en ubuntu-latest (ANDROID_HOME);
+      # Gradle descarga solo las plataformas que falten.
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests y comprobación de tipos
+        run: npm test && npm run typecheck
+
+      - name: Compilar web y sincronizar con Android
+        run: npm run build && npx cap sync android
+
+      - name: Compilar APK de depuración
+        working-directory: mascota-virtual/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patitas-debug-apk
+          path: mascota-virtual/android/app/build/outputs/apk/debug/*.apk
