@@ -611,7 +611,7 @@ small { color: var(--muted); }
 .challenge .bond-row { margin: 6px 0 2px; }
 
 /* ---------- Tienda Premium y eventos de temporada ---------- */
-.tab-premium { background: linear-gradient(135deg, #ffe08a, #ffb86b); color: #6b3a16; }
+.tab-premium { box-shadow: inset 0 0 0 2px #f2c14e; color: #8a5a00; }
 .tab-premium.active { background: linear-gradient(135deg, #ffb86b, #ff8a3d); color: #fff; }
 .event-banner { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border: 0; border-radius: 18px; padding: 10px 12px; margin-bottom: 10px;
   background: linear-gradient(135deg, #3b2a4a, #6a3f8a); color: #fff; box-shadow: var(--shadow); }
@@ -774,3 +774,14 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .result-verdict.record { color: #d18a00; text-shadow: 0 0 12px rgba(255,200,0,0.5); }
 .result-score { margin: 2px 0; font-size: 18px; }
 .result-score b { font-size: 44px; font-weight: 900; color: var(--ink); }
+
+/* Muebles en SVG (src/sprites/Furniture.ts) */
+.furniture.has-svg { width: 92px; height: 92px; filter: none; }
+.furniture.has-svg svg { width: 100%; height: 100%; display: block; }
+.item-icon-svg .furniture-svg { width: 40px; height: 40px; }
+.shop-art .item-icon-svg .furniture-svg { width: 64px; height: 64px; }
+/* La pestaña activa de la tienda siempre a la vista */
+.shop-tabs .tab.active { box-shadow: 0 3px 0 var(--primary-dark); }
+.money { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+.money .ui-icon { width: 1.15em; height: 1.15em; }
+.price-btn .money .ui-icon { filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15)); }

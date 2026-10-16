@@ -42,6 +42,7 @@ import { OnlineConfig } from '../../core/OnlineConfig';
 import { Analytics } from '../../systems/online/Analytics';
 import { hasIcon, icon } from '../icons';
 import { PetMind } from '../../systems/pet/PetMind';
+import { furnitureSVG } from '../../sprites/Furniture';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -61,7 +62,7 @@ const FURNITURE_POS: Record<string, string> = {
   furn_bed: 'left:3%;bottom:140px',
   furn_ball: 'right:4%;bottom:140px',
   furn_tv: 'left:4%;bottom:226px',
-  furn_tub: 'left:22%;bottom:222px',
+  furn_tub: 'left:31%;bottom:222px',
   furn_plant: 'right:22%;bottom:226px',
 };
 
@@ -367,7 +368,7 @@ export class HomeScreen implements Screen {
 
   private furnitureHTML(): string {
     return GameState.instance.data.furniture
-      .map((id) => `<span class="furniture" style="${FURNITURE_POS[id] ?? 'left:50%;bottom:160px'}">${DataRegistry.instance.getItem(id).icon}</span>`)
+      .map((id) => `<span class="furniture ${furnitureSVG(id) ? 'has-svg' : ''}" style="${FURNITURE_POS[id] ?? 'left:50%;bottom:160px'}">${furnitureSVG(id) ?? DataRegistry.instance.getItem(id).icon}</span>`)
       .join('');
   }
 

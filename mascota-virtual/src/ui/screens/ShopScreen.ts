@@ -41,7 +41,15 @@ export class ShopScreen implements Screen {
       if (act === 'tab') {
         this.tab = t.dataset.id as ShopTab;
         if (this.tab === 'premium') Analytics.instance.track('premium_vista');
+        const scrollLeft = this.root.querySelector('.shop-tabs')?.scrollLeft ?? 0;
         this.render();
+        // Mantiene la fila de pestañas donde estaba y centra la elegida
+        const tabs = this.root.querySelector<HTMLElement>('.shop-tabs');
+        const active = tabs?.querySelector<HTMLElement>('.tab.active');
+        if (tabs && active) {
+          tabs.scrollLeft = scrollLeft;
+          tabs.scrollTo({ left: active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2, behavior: 'smooth' });
+        }
       } else if (act === 'iap-buy') {
         void this.buyProduct(t.dataset.id!);
       } else if (act === 'iap-restore') {

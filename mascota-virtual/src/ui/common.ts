@@ -4,6 +4,7 @@ import { accessoryIconSVG } from '../sprites/Accessories';
 import { renderPetSVG } from '../sprites/PetSprite';
 import type { Pet, PetMood } from '../systems/pet/Pet';
 import { Sex, STAT_LABELS, type PetStatKey } from '../systems/pet/PetTypes';
+import { furnitureSVG } from '../sprites/Furniture';
 import { esc } from './dom';
 
 export interface Screen {
@@ -102,7 +103,7 @@ export function updateStatBars(root: HTMLElement, values: Partial<Record<PetStat
 
 /** Icono de un item: SVG para accesorios, emoji para el resto. */
 export function itemIcon(itemId: string): string {
-  const svg = accessoryIconSVG(itemId);
+  const svg = accessoryIconSVG(itemId) ?? furnitureSVG(itemId);
   if (svg) return `<span class="item-icon item-icon-svg">${svg}</span>`;
   return `<span class="item-icon">${esc(DataRegistry.instance.getItem(itemId).icon)}</span>`;
 }

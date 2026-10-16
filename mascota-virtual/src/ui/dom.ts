@@ -1,4 +1,5 @@
 /** Utilidades mínimas de DOM para la interfaz (sin frameworks, para que pese poco en Android). */
+import { icon } from './icons';
 
 /** Escapa texto para insertarlo en plantillas HTML. */
 export function esc(text: string | number): string {
@@ -31,8 +32,8 @@ export function onAction(root: HTMLElement, handler: (action: string, target: HT
 /** Formatea un precio con iconos. */
 export function priceHTML(price: { coins?: number; stars?: number }): string {
   const parts: string[] = [];
-  if (price.coins) parts.push(`🪙 ${price.coins}`);
-  if (price.stars) parts.push(`⭐ ${price.stars}`);
+  if (price.coins) parts.push(`<span class="money">${icon('coin')}${price.coins}</span>`);
+  if (price.stars) parts.push(`<span class="money">${icon('star')}${price.stars}</span>`);
   return parts.join(' · ') || 'Gratis';
 }
 
