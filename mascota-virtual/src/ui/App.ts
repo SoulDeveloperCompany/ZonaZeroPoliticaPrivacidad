@@ -33,6 +33,7 @@ import { PRODUCTS } from '../data/premium';
 import { hasIcon, icon } from './icons';
 import { PetMind } from '../systems/pet/PetMind';
 import { musicEnabled, setupMusic, startMusic, stopMusic } from './Music';
+import { setupDiaryAI } from './Diary';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -140,6 +141,7 @@ export class App {
 
     this.updateWallet();
     setupMusic();
+    setupDiaryAI();
     setInterval(() => this.current?.tick?.(), 1000);
     void GameManager.instance.syncOnline();
     this.setupBackButton();

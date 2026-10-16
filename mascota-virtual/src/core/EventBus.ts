@@ -26,6 +26,8 @@ export interface GameEvents {
   /** Aprendió que te gusta una conducta / una palabra nueva. */
   'mind:learned': { petId: string; text: string };
   'mind:word': { petId: string; word: string };
+  /** Se escribió una página nueva del diario (la del día anterior). */
+  'mind:diary': { petId: string; day: string; log: import('../systems/pet/PetMind').DayLog };
   /** Al cargar se usó la copia de respaldo ('backup') o no se pudo recuperar nada ('none'). */
   'save:recovered': { from: 'backup' | 'none' };
   'pet:removed': { petId: string };

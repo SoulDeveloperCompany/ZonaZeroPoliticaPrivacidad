@@ -91,7 +91,7 @@ describe('PetMind — aprende de ti', () => {
     const dog = PetManager.instance.createStarter(Species.Dog, 'Toby');
     for (let i = 0; i < 6; i++) mind.onAction(dog, 'play');
     expect(mind.knows(dog, 'pelota')).toBe(false);
-    expect(mind.say(dog, 'hungry')).toMatch(/Guau/);
+    expect(mind.say(dog, 'hungry')).toMatch(/Guau|patita|🍼/);
     grown(dog);
     expect(mind.onAction(dog, 'play')).toBe('pelota');
     const parrot = PetManager.instance.createStarter(Species.Parrot, 'Kiwi');
@@ -105,7 +105,7 @@ describe('PetMind — aprende de ti', () => {
     const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
     grown(pet);
     for (const a of ['feed', 'play', 'bathe', 'walk']) for (let i = 0; i < 4; i++) mind.onAction(pet, a);
-    expect(mind.say(pet, 'hungry')).toMatch(/comida/i);
+    expect(mind.say(pet, 'hungry')).toMatch(/comida|tripita|Comemos/i);
     mind.remember(pet, 'cuando gané la carrera', '🏆');
     pet.data.bond = 50;
     expect(mind.say(pet, 'memory')).toMatch(/Te acuerdas/);
@@ -125,5 +125,50 @@ describe('PetMind — aprende de ti', () => {
     }
     expect(mind.of(pet).tasted).toContain('food_basic');
     expect(mind.knows(pet, 'comida')).toBe(true);
+  });
+
+  it('peticiones: si tiene hambre lo pide, y si le haces caso te da las gracias', () => {
+    const mind = fresh();
+    mind.start();
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    grown(pet);
+    for (const a of ['feed', 'play', 'bathe']) for (let i = 0; i < 4; i++) mind.onAction(pet, a);
+    pet.stats.hunger = 85;
+    const c = mind.chatter(pet, now);
+    expect(c?.need).toBe('feed');
+    expect(mind.chatter(pet, now + 1000)).toBeNull(); // no insiste enseguida
+    expect(c?.text).toMatch(/comida|tripita|Comemos/i);
+    const said: string[] = [];
+    EventBus.instance.on('mind:say', ({ text }) => said.push(text));
+    const before = pet.stats.happiness;
+    InteractionSystem.instance.perform(pet.id, 'feed', { itemId: 'food_basic' });
+    expect(said.some((t) => /Gracias|mejor persona/.test(t))).toBe(true);
+    expect(pet.stats.happiness).toBeGreaterThan(before);
+  });
+
+  it('diario: al cambiar de día escribe la página de ayer con lo vivido', () => {
+    const mind = fresh();
+    mind.start();
+    const pet = PetManager.instance.createStarter(Species.Cat, 'Mishi');
+    grown(pet);
+    pet.stats.hunger = 80;
+    InteractionSystem.instance.perform(pet.id, 'feed', { itemId: 'food_basic' });
+    mind.remember(pet, 'cuando aprendí a dar vueltas', '🌀');
+    expect(mind.diaryPages(pet, now)[0].today).toBe(true);
+    const tomorrow = now + 26 * HOUR;
+    const pages = mind.diaryPages(pet, tomorrow);
+    expect(pages.length).toBe(1);
+    expect(pages[0].today).toBeUndefined();
+    expect(pages[0].text).toMatch(/comida básica/);
+    expect(pages[0].text).toMatch(/aprendí a dar vueltas/);
+  });
+
+  it('habla según su carácter', () => {
+    const mind = fresh();
+    const pet = PetManager.instance.createStarter(Species.Dog, 'Toby');
+    grown(pet);
+    pet.data.traits = ['curioso', 'curioso'];
+    for (const a of ['feed', 'play', 'bathe']) for (let i = 0; i < 4; i++) mind.onAction(pet, a);
+    expect(mind.say(pet, 'trait')).toMatch(/ventana|cielo/);
   });
 });

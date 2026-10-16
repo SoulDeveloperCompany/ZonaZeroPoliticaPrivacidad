@@ -115,6 +115,7 @@ for (const step of steps) {
         break;
       }
       case 'wait': await page.waitForTimeout(Number(arg)); break;
+      case 'eval': console.log('eval>', JSON.stringify(await page.evaluate(arg))); break;
       case 'close': await closeAll(); break;
       case 'shot': await page.waitForTimeout(300); await page.screenshot({ path: join(outDir, `${arg}.png`) }); break;
       default: errors.push(`Paso desconocido: ${step}`);

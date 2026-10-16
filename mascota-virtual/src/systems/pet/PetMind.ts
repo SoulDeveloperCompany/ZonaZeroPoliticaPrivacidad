@@ -19,7 +19,8 @@ import { DataRegistry } from '../../data/DataRegistry';
 import { getTrait } from '../../data/traits';
 import type { Pet } from './Pet';
 import { PetManager } from './PetManager';
-import { GrowthStage } from './PetTypes';
+import { GrowthStage, Sex } from './PetTypes';
+import { PLAY_GAMES } from '../../data/games';
 
 export interface PetMemory {
   t: number;
@@ -47,7 +48,36 @@ export interface PetMindData {
   memories: PetMemory[];
   /** Última conducta y cuándo (para atribuirle la caricia). */
   last: { id: string; at: number } | null;
+  /** Lo último que te pidió (para darte las gracias si le haces caso). */
+  request?: { need: Need; at: number } | null;
+  /** Lo que ha vivido hoy (para el diario) y las páginas del diario. */
+  log?: DayLog;
+  diary?: DiaryEntry[];
 }
+
+export type Need = 'feed' | 'bathe' | 'play';
+
+export interface DayLog {
+  day: string;
+  actions: Record<string, number>;
+  foods: string[];
+  games: string[];
+  news: string[];
+}
+
+export interface DiaryEntry {
+  day: string;
+  text: string;
+  /** Escrita con IA en la nube (se puede denunciar). */
+  ai?: boolean;
+}
+
+const MAX_DIARY = 14;
+const dayKey = (now: number) => {
+  const d = new Date(now);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`);
 
 /** Conductas en reposo: clase CSS, idea (emoji del bocadillo) y nombre para contarlo. */
 export interface Behavior {
@@ -142,6 +172,21 @@ export class PetMind {
         }
       }
       this.onAction(pet, actionId);
+      const day = this.today(pet);
+      day.actions[actionId] = (day.actions[actionId] ?? 0) + 1;
+      if (actionId === 'feed' && itemId) {
+        const name = DataRegistry.instance.getItem(itemId).name.toLowerCase();
+        if (!day.foods.includes(name)) day.foods.push(name);
+      }
+      this.fulfil(pet, actionId as Need);
+    });
+    bus.on('game:finished', ({ petId, gameId }) => {
+      const pet = PetManager.instance.get(petId);
+      if (!pet) return;
+      const name = PLAY_GAMES.find((g) => g.id === gameId)?.name ?? gameId;
+      const day = this.today(pet);
+      if (!day.games.includes(name)) day.games.push(name);
+      this.fulfil(pet, 'play');
     });
     bus.on('trick:learned', ({ petId, trickId }) => {
       const pet = PetManager.instance.get(petId);
@@ -150,7 +195,9 @@ export class PetMind {
     });
     bus.on('competition:finished', ({ petId, rating }) => {
       const pet = PetManager.instance.get(petId);
-      if (pet && rating >= 4) this.remember(pet, `cuando saqué ${rating} estrellas en una competencia`, '🏆');
+      if (!pet) return;
+      this.today(pet).news.push(`competí y saqué ${rating} ${rating === 1 ? 'estrella' : 'estrellas'}`);
+      if (rating >= 4) this.remember(pet, `cuando saqué ${rating} estrellas en una competencia`, '🏆');
     });
     bus.on('pet:birthday', ({ petId, months }) => {
       const pet = PetManager.instance.get(petId);
@@ -326,6 +373,74 @@ export class PetMind {
     if (m.memories.some((x) => x.text === text)) return;
     m.memories.push({ t: now, text, icon });
     if (m.memories.length > MAX_MEMORIES) m.memories.shift();
+    // "cuando aprendí X" → "aprendí X" en el diario de hoy
+    this.today(pet, now).news.push(text.replace(/^cuando /, ''));
+  }
+
+  // ---------- Peticiones y gracias ----------
+
+  /** Si le haces caso a lo que te pidió (en menos de 30 s), te lo agradece. */
+  private fulfil(pet: Pet, need: Need, now = Clock.now()): void {
+    const m = this.of(pet);
+    if (!m.request || m.request.need !== need || now - m.request.at > 30_000) return;
+    m.request = null;
+    pet.applyDeltas({ happiness: 2 });
+    EventBus.instance.emit('mind:say', { petId: pet.id, text: this.say(pet, 'thanks') });
+  }
+
+  // ---------- Diario ----------
+
+  /** Registro de hoy (si cambió el día, escribe la página de ayer en el diario). */
+  today(pet: Pet, now = Clock.now()): DayLog {
+    const m = this.of(pet);
+    const key = dayKey(now);
+    if (!m.log || m.log.day !== key) {
+      if (m.log && (Object.keys(m.log.actions).length || m.log.games.length || m.log.news.length)) {
+        m.diary = [...(m.diary ?? []), { day: m.log.day, text: this.writeDiary(pet, m.log) }].slice(-MAX_DIARY);
+        EventBus.instance.emit('mind:diary', { petId: pet.id, day: m.log.day, log: m.log });
+      }
+      m.log = { day: key, actions: {}, foods: [], games: [], news: [] };
+    }
+    return m.log;
+  }
+
+  /** Páginas del diario, la más reciente primero (incluye "hoy, hasta ahora"). */
+  diaryPages(pet: Pet, now = Clock.now()): (DiaryEntry & { today?: boolean })[] {
+    const log = this.today(pet, now);
+    const pages: (DiaryEntry & { today?: boolean })[] = [...(this.of(pet).diary ?? [])].reverse();
+    const hasToday = Object.keys(log.actions).length || log.games.length || log.news.length;
+    return hasToday ? [{ day: log.day, text: this.writeDiary(pet, log), today: true }, ...pages] : pages;
+  }
+
+  /** Sustituye una página por la versión escrita con IA (ver DiaryAI). */
+  setDiaryText(pet: Pet, day: string, text: string): void {
+    const e = this.of(pet).diary?.find((d) => d.day === day);
+    if (e) {
+      e.text = text;
+      e.ai = true;
+    }
+  }
+
+  /** Escribe una página en primera persona a partir de lo vivido ese día. */
+  writeDiary(pet: Pet, log: DayLog): string {
+    const snd = SOUND[pet.data.speciesId] ?? '¡!';
+    const a = log.actions;
+    const parts: string[] = [];
+    if (log.foods.length) {
+      const loved = log.foods.filter((f) => this.tastes(pet).love.some((id) => DataRegistry.instance.getItem(id).name.toLowerCase() === f));
+      parts.push(`Hoy comí ${list(log.foods)}.${loved.length ? ` ¡${loved[0].charAt(0).toUpperCase()}${loved[0].slice(1)} es lo mejor del mundo!` : ''}`);
+    }
+    if ((a.pet ?? 0) >= 3) parts.push('Me dieron muchísimos mimos. 🥰');
+    else if (a.pet) parts.push('Me acariciaron y me sentí muy querida/o.'.replace('querida/o', pet.data.sex === Sex.Female ? 'querida' : 'querido'));
+    if (a.bathe) parts.push('Me bañaron y quedé brillante. ✨');
+    if (a.walk) parts.push(a.walk > 1 ? 'Salimos de paseo varias veces. ¡Cuántos olores!' : 'Salimos de paseo. ¡Cuántos olores! 🌳');
+    if (a.train) parts.push('Practiqué trucos con mucha concentración. 🎯');
+    if (log.games.length) parts.push(`Jugamos a ${list(log.games.map((g) => `«${g}»`))}.`);
+    for (const n of log.news.slice(0, 3)) parts.push(`También ${n}.`);
+    if (!parts.length) parts.push('Fue un día tranquilo.');
+    const close = pet.data.bond >= 60 ? 'Te quiero muchísimo. 💞' : pet.data.bond >= 20 ? 'Me gusta mucho estar contigo. 💕' : 'Mañana quiero jugar más contigo.';
+    if (pet.stage === GrowthStage.Baby) return `${snd} ${snd}… (${parts.join(' ')} ${close})`;
+    return `${parts.join(' ')} ${close}`;
   }
 
   // ---------- Habla ----------
@@ -342,11 +457,13 @@ export class PetMind {
     const name = k(pet.name) ? pet.name : '';
     const talks = pet.stage !== GrowthStage.Baby && m.words.length >= 3;
     if (pet.stage === GrowthStage.Baby) {
-      const baby: Record<string, string> = {
-        hungry: `${snd} 🍼`, dirty: `${snd} 🫧`, bored: `${snd} 🎾`, tired: `${snd.replace('!', '…')} 💤`,
-        head: `${snd} 💕`, belly: `¡Ji ji! ${snd}`, dizzy: '@_@', 'love-food': `¡Ñam ñam! 😋`, 'dislike-food': '¡Puaj! 😖',
+      const baby: Record<string, string[]> = {
+        hungry: [`${snd} 🍼`, `${snd.replace('!', '…')} 🥺🍼`, '*se chupa la patita* 🍼'], dirty: [`${snd} 🫧`, '*se rasca* 🫧'],
+        bored: [`${snd} 🎾`, `¡${snd.replace(/[¡!]/g, '')} ${snd.replace(/[¡!]/g, '').toLowerCase()}! 🎾`], tired: [`${snd.replace('!', '…')} 💤`, '*bosteza* 💤'],
+        head: [`${snd} 💕`, '*cierra los ojitos* 💕'], belly: [`¡Ji ji! ${snd}`, '*patalea feliz* 😆'], dizzy: ['@_@'],
+        'love-food': ['¡Ñam ñam! 😋'], 'dislike-food': ['¡Puaj! 😖'], thanks: [`${snd} 💕`, '*te da un lametón* 💕'],
       };
-      return baby[ctx] ?? `${snd} ✨`;
+      return pick(baby[ctx] ?? [`${snd} ✨`, '*te mira con ojitos brillantes* ✨', `${snd} 💛`]);
     }
     const opts: string[] = [];
     switch (ctx) {
@@ -360,10 +477,12 @@ export class PetMind {
         opts.push(k('hola') ? `¡Hola! ${snd}` : `${snd} 👋`);
         break;
       case 'hungry':
-        opts.push(k('comida') ? (talks ? '¿Hay comida? Tengo hambre… 🥺' : `¿Comida? ${snd}`) : `${snd} 🍖`);
+        if (k('comida')) opts.push(...(talks ? ['¿Hay comida? Tengo hambre… 🥺', 'Mi tripita hace ruidos… 🍖', '¿Comemos algo? 😋'] : [`¿Comida? ${snd}`, '¡Comida, comida! 🍖']));
+        else opts.push(`${snd} 🍖`, '*mira su cuenco vacío* 🥺', `${snd.replace('!', '…')} 🍖`);
         break;
       case 'dirty':
-        opts.push(k('baño') ? (talks ? 'Creo que necesito un baño… 🫧' : `¿Baño? 🫧`) : `${snd} 🫧`);
+        if (k('baño')) opts.push(...(talks ? ['Creo que necesito un baño… 🫧', 'Huelo un poquito raro… 🫧'] : ['¿Baño? 🫧']));
+        else opts.push(`${snd} 🫧`, '*se rasca la oreja* 🫧');
         break;
       case 'bored':
         opts.push(k('pelota') ? (talks ? '¿Jugamos con la pelota? 🎾' : `¡Pelota! ${snd}`) : `${snd} 🎾`);
@@ -398,6 +517,30 @@ export class PetMind {
       case 'learned':
         opts.push(talks ? '¡Ya sé lo que te gusta! 💡' : `${snd} 💡`);
         break;
+      case 'thanks':
+        opts.push(talks ? '¡Gracias por hacerme caso! 💕' : `¡${snd.replace(/[¡!]/g, '')}! 💕`, talks ? '¡Eres la mejor persona del mundo! 🥰' : `${snd} 🥰`);
+        break;
+      case 'time': {
+        const h = new Date(Clock.now()).getHours();
+        if (talks) opts.push(h < 12 ? '¡Buenos días! ☀️' : h < 20 ? '¡Qué buena tarde hace! 🌤️' : '¡Buenas noches! 🌙');
+        else opts.push(`${snd} ${h < 12 ? '☀️' : h < 20 ? '🌤️' : '🌙'}`);
+        break;
+      }
+      case 'trait':
+        opts.push(...this.traitLines(pet, talks, snd));
+        break;
+      case 'fav': {
+        const fav = this.tastes(pet).love[0];
+        if (fav && talks) opts.push(`Sueño con ${DataRegistry.instance.getItem(fav).name.toLowerCase()}… 😋`);
+        else opts.push(`${snd} 😋`);
+        break;
+      }
+      case 'again': {
+        const id = m.learned[Math.floor(Math.random() * m.learned.length)];
+        if (id && B[id] && talks) opts.push(`¿Quieres que ${B[id].name} otra vez? 😊`);
+        else opts.push(`${snd} ✨`);
+        break;
+      }
       case 'memory': {
         const mem = this.recall(pet);
         if (mem && talks) opts.push(`¿Te acuerdas de ${mem.text}? ${mem.icon}`);
@@ -410,6 +553,22 @@ export class PetMind {
     return pick(opts);
   }
 
+  /** Frases según su carácter (rasgos). */
+  private traitLines(pet: Pet, talks: boolean, snd: string): string[] {
+    const f = pet.data.sex === Sex.Female;
+    const lines: Record<string, string[]> = {
+      gloton: ['¿Ya es hora de comer? Pregunto por nada… 🍪', '¡Huele a algo rico! 👃'],
+      dormilon: ['Una siestecita no me vendría mal… 😴', '¿Sabías que dormir es mi deporte favorito? 💤'],
+      jugueton: ['¡Tengo ganas de correr! 🎾', '¡Juguemos a algo! ¡Lo que sea! ⚡'],
+      timido: ['Eh… hola… 👉👈', 'Contigo ya no me da tanta vergüenza… 🙈'],
+      curioso: ['¿Qué hay detrás de la ventana? 🔍', '¿Por qué el cielo es azul? 🤔'],
+      carinoso: ['¿Un abrazo? 🤗', '¡Eres mi persona favorita! 💕'],
+      presumido: [`¿A que hoy estoy ${f ? 'guapísima' : 'guapísimo'}? ✨`, '¿Me sacas una foto? 📸'],
+    };
+    const out = pet.data.traits.flatMap((t) => lines[t] ?? []);
+    return talks && out.length ? out : [`${snd} ✨`];
+  }
+
   /** Un recuerdo al azar (los más recientes, más probables). */
   recall(pet: Pet): PetMemory | null {
     const mems = this.of(pet).memories;
@@ -418,16 +577,32 @@ export class PetMind {
     return mems[Math.min(i, mems.length - 1)];
   }
 
-  /** ¿Qué le apetece decir por iniciativa propia ahora? (null = nada) */
-  chatter(pet: Pet, now = Clock.now()): string | null {
+  /**
+   * ¿Qué le apetece decir por iniciativa propia? Si es una petición (comer, bañarse, jugar),
+   * devuelve `need`: tocar el bocadillo lo atiende, y si le haces caso te da las gracias.
+   */
+  chatter(pet: Pet, now = Clock.now()): { text: string; need?: Need } | null {
     const s = pet.stats;
+    const m = this.of(pet);
     const h = new Date(now).getHours();
-    if (s.hunger > 70) return this.say(pet, 'hungry');
-    if (s.hygiene < 30) return this.say(pet, 'dirty');
-    if (s.energy < 25 || (h >= 22 || h < 6)) return this.say(pet, s.energy < 25 ? 'tired' : 'night');
-    if (s.happiness < 45) return this.say(pet, 'bored');
-    if (Math.random() < 0.35 && this.of(pet).memories.length > 0 && pet.data.bond >= 20) return this.say(pet, 'memory');
-    return this.say(pet, 'happy');
+    const ask = (ctx: string, need: Need) => {
+      // No insiste: si ya lo pidió hace poco, espera (como mucho una petición cada 25 s)
+      if (m.request && now - m.request.at < 25_000) return null;
+      m.request = { need, at: now };
+      return { text: this.say(pet, ctx), need };
+    };
+    if (s.hunger > 70) return ask('hungry', 'feed');
+    if (s.hygiene < 30) return ask('dirty', 'bathe');
+    if (s.energy < 25) return { text: this.say(pet, 'tired') };
+    if (s.happiness < 45 && s.energy > 30) return ask('bored', 'play');
+    if (h >= 22 || h < 6) return { text: this.say(pet, 'night') };
+    const r = Math.random();
+    if (r < 0.2 && m.memories.length > 0 && pet.data.bond >= 20) return { text: this.say(pet, 'memory') };
+    if (r < 0.4) return { text: this.say(pet, 'trait') };
+    if (r < 0.5 && m.learned.length) return { text: this.say(pet, 'again') };
+    if (r < 0.58 && this.tastes(pet).love.length) return { text: this.say(pet, 'fav') };
+    if (r < 0.68) return { text: this.say(pet, 'time') };
+    return { text: this.say(pet, 'happy') };
   }
 
   /** Resumen para la ficha de estado. */

@@ -175,6 +175,17 @@ export class OnlineService {
     return { monedas: Number(res.monedas) || 0, adoptadas: res.adoptadas ?? [], regalos: res.regalos ?? [], buzon: Array.isArray(res.buzon) ? res.buzon : [] };
   }
 
+  /** Página del diario escrita con IA en el servidor (si el dueño la activó). Solo datos del juego. */
+  async diaryAI(payload: Record<string, unknown>): Promise<string | null> {
+    const res = await this.call('POST', { accion: 'diario', ...payload });
+    return res.ia && typeof res.texto === 'string' ? res.texto : null;
+  }
+
+  /** Denuncia una página del diario escrita con IA. */
+  async reportDiary(dia: string, texto: string, motivo: string): Promise<void> {
+    await this.call('POST', { accion: 'reportar', dia, texto, motivo });
+  }
+
   /** Deja una golosina a la mascota de otro jugador del parque (id corto del parque). */
   async sendGift(parkId: string): Promise<void> {
     await this.call('POST', { accion: 'regalo', para: parkId });

@@ -24,6 +24,10 @@ const ctx = {
   LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) },
   Utilities: { getUuid: () => crypto.randomUUID(), formatDate: (d) => new Date(d).toISOString().slice(0, 10) },
+  // Propiedades del script e IA simuladas: nunca se llama a la API real
+  PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => ctx._props[k] ?? null }) },
+  UrlFetchApp: { fetch: (url, opts) => { ctx._fetches.push({ url, opts }); return { getResponseCode: () => 200, getContentText: () => JSON.stringify(ctx._iaRespuesta) }; } },
+  _props: {}, _fetches: [], _iaRespuesta: null,
   Date, JSON, Math, Number, String, Object,
 };
 vm.createContext(ctx);
@@ -113,5 +117,25 @@ post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) });
 post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) });
 check(post({ accion: 'regalo', id: B, apodo: 'Bigote', para: A.slice(0, 8) }).error === 'limite', 'como mucho 3 regalos al día');
 check(post({ accion: 'regalo', id: X, apodo: 'z', para: A.slice(0, 8) }).ok === false, 'un ID sin sincronizar no puede regalar');
+// ---------- Diario con IA (opcional) ----------
+const reg1 = { acciones: { feed: 2, bathe: 1 }, comidas: ['filete'], juegos: ['Burbujas'], novedades: ['aprendí a decir «pelota»'] };
+check(post({ accion: 'diario', id: A, nombre: 'Toby', especie: 'dog', registro: reg1 }).ia === false && ctx._fetches.length === 0, 'sin clave no llama a la IA (diario local)');
+ctx._props.ANTHROPIC_API_KEY = 'clave-de-prueba';
+ctx._iaRespuesta = { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Hoy comí filete y me bañaron. ¡Qué día! 🐾' }] };
+const dia1 = post({ accion: 'diario', id: A, nombre: 'Toby', especie: 'dog', rasgos: ['gloton', '<script>'], registro: reg1 });
+check(dia1.ia === true && dia1.texto.startsWith('Hoy comí filete'), 'con clave devuelve la página escrita por la IA');
+const envio = JSON.parse(ctx._fetches[0].opts.payload);
+check(envio.model === 'claude-opus-5-5' && envio.fallbacks === 'default' && ctx._fetches[0].opts.headers['anthropic-beta'] === 'server-side-fallback-2026-07-01', 'usa el modelo por defecto con fallbacks');
+check(!JSON.stringify(envio).includes('<script>') && JSON.parse(envio.messages[0].content.slice(envio.messages[0].content.indexOf('{'))).rasgos.length === 1, 'solo envía datos del juego validados');
+ctx._iaRespuesta = { stop_reason: 'refusal', content: [] };
+check(post({ accion: 'diario', id: A, nombre: 'Toby', registro: reg1 }).ia === false, 'si la IA se niega, se usa el diario local');
+ctx._iaRespuesta = { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Otra página' }] };
+post({ accion: 'diario', id: A, nombre: 'Toby', registro: reg1 });
+const antes = ctx._fetches.length;
+check(post({ accion: 'diario', id: A, nombre: 'Toby', registro: reg1 }).ia === false && ctx._fetches.length === antes, 'como mucho 3 páginas con IA al día por jugador');
+check(post({ accion: 'diario', id: X, nombre: 'X', registro: reg1 }).ia === false, 'un jugador sin sincronizar no gasta IA');
+check(post({ accion: 'reportar', id: A, dia: '2026-10-16', texto: 'Hoy comí filete', motivo: 'ofensivo' }).ok && sheets.Reportes._rows.length === 2, 'las denuncias se guardan en la pestaña Reportes');
+check(get({}).version === 4, 'el servidor dice version 4');
+
 console.log(ok ? '\nServidor OK' : '\nHAY FALLOS');
 process.exit(ok ? 0 : 1);

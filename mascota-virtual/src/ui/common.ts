@@ -94,10 +94,13 @@ export function updateStatBars(root: HTMLElement, values: Partial<Record<PetStat
     const row = root.querySelector<HTMLElement>(`.stat[data-stat="${key}"]`);
     if (!row) continue;
     const v = Math.round(value);
+    // Solo se toca el DOM si el valor cambió (se llama cada segundo: ahorra batería)
+    if (row.dataset.v === String(v)) continue;
+    row.dataset.v = String(v);
     const fill = row.querySelector<HTMLElement>('.bar-fill')!;
     fill.style.width = `${v}%`;
     fill.style.background = statColor(key, v);
-    fill.className = `bar-fill ${statLevel(key, v) === 'bad' ? 'lvl-bad' : ''}`;
+    fill.classList.toggle('lvl-bad', statLevel(key, v) === 'bad');
     row.querySelector('.stat-val')!.textContent = String(v);
   }
 }

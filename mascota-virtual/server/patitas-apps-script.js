@@ -13,6 +13,13 @@
 //   Regalos    · regalos que TÚ escribes a mano (a un jugador o a "todos")
 //   Eventos    · estadísticas anónimas de uso (sesiones, etapas, minijuegos...). Resumen: ?accion=metricas
 //   Comunidad  · progreso del desafío semanal entre todos (ver DESAFIOS)
+//   Reportes   · páginas del diario escritas con IA que algún jugador ha denunciado (revísalas)
+//
+// Diario con IA (OPCIONAL, cuesta dinero por uso): la mascota escribe su diario con Claude.
+//   Para activarlo: Apps Script › Configuración del proyecto › Propiedades del script ›
+//   añade ANTHROPIC_API_KEY con tu clave (https://console.anthropic.com). Sin clave, el juego
+//   escribe el diario él solo (gratis). Opcional: MODELO_IA (por defecto claude-opus-5-5;
+//   claude-haiku-5-5 es unas 40 veces más barato). Tope: DIARIOS_DIA páginas por jugador y día.
 //
 // Protección contra trampas (el juego decide las monedas en el móvil, así que el servidor pone topes):
 //   precio de adopción ≤ PRECIO_MAX · tarifa de pareja entre TARIFA_MIN y TARIFA_MAX
@@ -27,9 +34,10 @@ const HOJAS = {
   Regalos: ['regalo', 'para', 'monedas', 'estrellas', 'objeto', 'cantidad', 'mensaje', 'activo', 'entregados'],
   Eventos: ['fecha', 'dia', 'id', 'version', 'evento', 'dato'],
   Comunidad: ['semana', 'accion', 'total'],
+  Reportes: ['fecha', 'id', 'dia', 'texto', 'motivo'],
 };
 // Columnas de ids: se guardan como texto para que Sheets no las convierta en números
-const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'], Eventos: ['B', 'C', 'D'], Comunidad: ['A', 'B'] };
+const COLUMNAS_TEXTO = { Jugadores: ['A'], Adopciones: ['A', 'B', 'D'], Parejas: ['A', 'B', 'D'], Puntajes: ['A'], Regalos: ['B', 'I'], Eventos: ['B', 'C', 'D'], Comunidad: ['A', 'B'], Reportes: ['B', 'C'] };
 const PRECIO_MAX = 220;      // máximo legítimo del juego ≈ 197 (bebé perfecto y muy bello)
 const TARIFA_MIN = 50, TARIFA_MAX = 200;
 const INGRESO_MAX_DIA = 600; // monedas al día que un dueño puede cobrar de otros jugadores
@@ -47,6 +55,8 @@ const DESAFIOS = [
   { accion: 'feed', titulo: 'Entre todos, {n} comidas', objetivo: 400, monedas: 100, estrellas: 1 },
 ];
 const MIN_PARQUE = 30; // minutos que un jugador cuenta como "en el parque" tras su última conexión
+const DIARIOS_DIA = 3, REPORTES_DIA = 10;
+const RASGOS = ['gloton', 'dormilon', 'jugueton', 'timido', 'curioso', 'carinoso', 'presumido'];
 
 // ---------- Utilidades de hojas ----------
 function hoja_(nombre) {
@@ -203,6 +213,7 @@ function doPost(e) {
   let d;
   try { d = JSON.parse(e.postData.contents); } catch (err) { return responder_({ ok: false, error: 'json' }); }
   if (!idValido_(d.id)) return responder_({ ok: false, error: 'id' });
+  if (d.accion === 'diario') return responder_(diario_(d));
   const apodo = texto_(d.apodo, 30);
   const candado = LockService.getScriptLock();
   candado.waitLock(10000);
@@ -315,11 +326,96 @@ function doPost(e) {
         escribir_('Jugadores', dest);
         return responder_({ ok: true });
       }
+      case 'reportar': {
+        // Denuncia de una página del diario escrita con IA (exigencia de Google Play para contenido generado por IA)
+        const yo = jugador_(d.id);
+        if (!yo) return responder_({ ok: false, error: 'sin-sincronizar' });
+        const l = limites_(yo);
+        if ((l.reportes || 0) >= REPORTES_DIA) return responder_({ ok: false, error: 'limite' });
+        l.reportes = (l.reportes || 0) + 1;
+        yo.limites = JSON.stringify(l);
+        escribir_('Jugadores', yo);
+        escribir_('Reportes', { fecha: new Date(), id: d.id, dia: texto_(d.dia, 10), texto: texto_(d.texto, 800), motivo: texto_(d.motivo, 60) });
+        return responder_({ ok: true });
+      }
       default:
         return responder_({ ok: false, error: 'accion' });
     }
   } finally {
     candado.releaseLock();
+  }
+}
+
+// ---------- Diario con IA (opcional) ----------
+/**
+ * Escribe una página del diario con Claude a partir de lo que vivió la mascota ese día.
+ * No recibe ningún texto escrito por el jugador: solo datos del juego (comidas, juegos, contadores).
+ * Devuelve { ok: true, ia: false } si no hay clave, se pasó el tope o algo falla: el juego usa su diario local.
+ */
+function diario_(d) {
+  const clave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!clave) return { ok: true, ia: false };
+  // Tope diario por jugador (con candado solo lo justo)
+  const candado = LockService.getScriptLock();
+  candado.waitLock(10000);
+  try {
+    const yo = jugador_(d.id);
+    if (!yo) return { ok: true, ia: false };
+    const l = limites_(yo);
+    if ((l.diarios || 0) >= DIARIOS_DIA) return { ok: true, ia: false };
+    l.diarios = (l.diarios || 0) + 1;
+    yo.limites = JSON.stringify(l);
+    escribir_('Jugadores', yo);
+  } finally {
+    candado.releaseLock();
+  }
+  const r = d.registro || {};
+  const acciones = {};
+  ['feed', 'pet', 'bathe', 'walk', 'train', 'play'].forEach((k) => { const n = num_((r.acciones || {})[k], 50); if (n) acciones[k] = n; });
+  const lista = (v, n, max) => (Array.isArray(v) ? v : []).slice(0, n).map((x) => texto_(x, max)).filter(Boolean);
+  const hechos = {
+    nombre: texto_(d.nombre, 16),
+    especie: ESPECIES.indexOf(d.especie) >= 0 ? d.especie : 'dog',
+    etapa: texto_(d.etapa, 12),
+    sexo: d.sexo === 'female' ? 'hembra' : 'macho',
+    rasgos: (Array.isArray(d.rasgos) ? d.rasgos : []).filter((x) => RASGOS.indexOf(x) >= 0),
+    vinculo: num_(d.vinculo, 100),
+    acciones: acciones,
+    comidas: lista(r.comidas, 8, 30),
+    juegos: lista(r.juegos, 6, 30),
+    novedades: lista(r.novedades, 3, 80),
+    leGusta: lista(d.leGusta, 3, 30),
+  };
+  const sistema = 'Eres la voz de una mascota virtual en un juego para todas las edades. Escribes una página de su diario ' +
+    'en primera persona, en español neutro, tierna y con humor suave, de 2 a 4 frases (máximo 70 palabras) y como mucho 2 emojis. ' +
+    'Usa solo los hechos que te dan; no inventes personas, lugares ni sucesos. Llama a quien te cuida "mi persona". ' +
+    'No menciones que eres una IA ni hables de temas sensibles. Responde solo con el texto de la página.';
+  try {
+    const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      contentType: 'application/json',
+      muteHttpExceptions: true,
+      headers: {
+        'x-api-key': clave,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'server-side-fallback-2026-07-01',
+      },
+      payload: JSON.stringify({
+        model: PropertiesService.getScriptProperties().getProperty('MODELO_IA') || 'claude-opus-5-5',
+        max_tokens: 2000,
+        output_config: { effort: 'low' },
+        fallbacks: 'default',
+        system: sistema,
+        messages: [{ role: 'user', content: 'Hechos del día (JSON): ' + JSON.stringify(hechos) }],
+      }),
+    });
+    if (res.getResponseCode() !== 200) return { ok: true, ia: false };
+    const m = JSON.parse(res.getContentText());
+    if (m.stop_reason === 'refusal') return { ok: true, ia: false };
+    const texto = (m.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    return texto ? { ok: true, ia: true, texto: texto_(texto, 600) } : { ok: true, ia: false };
+  } catch (err) {
+    return { ok: true, ia: false };
   }
 }
 
@@ -351,7 +447,7 @@ function doGet(e) {
       return responder_(metricas_());
     default:
       prepararHojas();
-      return responder_({ ok: true, servidor: 'Patitas', version: 3 });
+      return responder_({ ok: true, servidor: 'Patitas', version: 4 });
   }
 }
 

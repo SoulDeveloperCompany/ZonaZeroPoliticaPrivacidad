@@ -45,6 +45,7 @@ import { hasIcon, icon } from '../icons';
 import { PetMind } from '../../systems/pet/PetMind';
 import { furnitureSVG } from '../../sprites/Furniture';
 import { itemSVG } from '../../sprites/ItemIcons';
+import { openDiary } from '../Diary';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -141,6 +142,13 @@ export class HomeScreen implements Screen {
       wrap.style.setProperty('--walk-x', '0px');
       return;
     }
+    // Habla por iniciativa propia (también mientras pasea): si necesita algo, lo pide más a menudo
+    const st = pet.stats;
+    const needy = st.hunger > 70 || st.hygiene < 30 || (st.happiness < 45 && st.energy > 30);
+    if (Math.random() < (needy ? 0.45 : 0.3)) {
+      const words = PetMind.instance.chatter(pet);
+      if (words) this.speak(words.text, words.need);
+    }
     const roll = Math.random();
     if (roll < 0.4) {
       // Pasea por la alfombra mirando hacia donde va
@@ -156,24 +164,31 @@ export class HomeScreen implements Screen {
       const b = PetMind.instance.chooseBehavior(pet);
       sprite.classList.add(b.cls);
       // A veces habla por iniciativa propia (lo que necesita, lo que siente o un recuerdo)
-      const words = Math.random() < 0.28 ? PetMind.instance.chatter(pet) : null;
-      if (words) this.speak(words);
-      else if (b.idea) this.think(wrap, b.idea);
+      if (b.idea && !wrap.querySelector('.speech')) this.think(wrap, b.idea);
       setTimeout(() => sprite.classList.remove(b.cls), 1600);
     }
   }
 
   /** Bocadillo de habla (frases de PetMind). */
-  private speak(text: string): void {
+  private speak(text: string, need?: string): void {
     const wrap = this.root.querySelector<HTMLElement>('.pet-stage-wrap');
     if (!wrap || !text) return;
     wrap.querySelector('.thought')?.remove();
     wrap.querySelector('.speech')?.remove();
-    const t = document.createElement('span');
-    t.className = 'speech';
+    const t = document.createElement(need ? 'button' : 'span');
+    t.className = need ? 'speech ask' : 'speech';
     t.textContent = text;
+    if (need) {
+      // Una petición: tocar el bocadillo la atiende directamente
+      t.addEventListener('pointerdown', (e) => e.stopPropagation());
+      t.addEventListener('click', () => {
+        t.remove();
+        const pet = this.pet;
+        if (pet) this.doAction(pet, need);
+      });
+    }
     wrap.appendChild(t);
-    setTimeout(() => t.remove(), 3200);
+    setTimeout(() => t.remove(), need ? 5000 : 3200);
   }
 
   // ---------- Caricias: tocar la cabeza, hacer cosquillas en la barriga, acariciar arrastrando ----------
@@ -365,6 +380,7 @@ export class HomeScreen implements Screen {
       ${m.tastes.love.length ? `<p>😋 Le encanta: ${foods(m.tastes.love)}</p>` : ''}
       ${m.tastes.dislike.length ? `<p>😖 No le gusta: ${foods(m.tastes.dislike)}</p>` : ''}
       ${!m.tastes.love.length && !m.tastes.dislike.length ? '<p class="hint">🍽️ Dale a probar comidas distintas para descubrir sus gustos.</p>' : ''}
+      <button class="btn btn-sm diary-btn" data-act="diary">📔 Leer su diario</button>
     </div>`;
   }
 
@@ -545,6 +561,9 @@ export class HomeScreen implements Screen {
         return;
       case 'action':
         if (pet) this.doAction(pet, t.dataset.id!);
+        return;
+      case 'diary':
+        if (pet) openDiary(pet);
         return;
       case 'share':
         if (pet) void sharePet(pet);
