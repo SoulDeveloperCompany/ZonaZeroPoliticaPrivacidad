@@ -31,6 +31,7 @@ import { BondSystem } from '../systems/pet/BondSystem';
 import { maybeAskSupportSurvey } from './Survey';
 import { PRODUCTS } from '../data/premium';
 import { hasIcon, icon } from './icons';
+import { PetMind } from '../systems/pet/PetMind';
 import { ShopScreen } from './screens/ShopScreen';
 
 /** Herramientas de prueba (adelantar el tiempo, monedas): no van en la versión de Google Play (VITE_TIENDA=1). */
@@ -71,6 +72,17 @@ export class App {
     const bus = EventBus.instance;
     bus.on('economy:walletChanged', () => this.updateWallet());
     bus.on('ui:toast', ({ text, kind }) => showToast(text, kind));
+    bus.on('mind:learned', ({ text }) => {
+      showToast(`💡 ${text}`, 'good');
+      play('happy');
+    });
+    bus.on('mind:word', ({ petId, word }) => {
+      const pet = PetManager.instance.get(petId);
+      if (pet) showToast(`📖 ${pet.name} aprendió a decir «${word}»`, 'good');
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.greet(null);
+    });
     bus.on('pet:returnedHome', ({ name }) => {
       showModal({ title: '🏠 ¡Volvió a casa!', body: `<p>${esc(name)} encontró el camino de vuelta. Llega con hambre y algo sucia: dale mimos.</p>` });
     });
@@ -167,14 +179,20 @@ export class App {
   }
 
   /** Al volver tras unas horas, la mascota te recibe (según el vínculo). Nunca reproches. */
-  private greet(report: OfflineReport | null): void {
+  /**
+   * Al volver, la mascota te recibe según lo que sabe de ti (PetMind): si llegas a tu hora habitual
+   * te esperaba; si llevas un día fuera, te echó de menos. Nunca reproches.
+   */
+  private greet(_report: OfflineReport | null): void {
     const pet = PetManager.instance.selected;
-    if (!pet || !report || report.offlineMs < 3 * 60 * 60 * 1000 || pet.data.bond < 20) return;
-    const frases = pet.data.bond >= 60 ? [`💞 ¡${pet.name} corre a recibirte!`, `💞 ${pet.name} te estaba esperando en la puerta`] : [`👀 ${pet.name} te ha reconocido y mueve la colita`];
+    if (!pet) return;
+    const v = PetMind.instance.onVisit(pet);
+    const ctx = v.awayH >= 24 ? 'greet-missed' : v.expected && v.awayH >= 2 ? 'greet-expected' : v.awayH >= 3 ? 'greet' : null;
+    if (!ctx) return;
     setTimeout(() => {
-      showToast(frases[Math.floor(Math.random() * frases.length)], 'good');
+      EventBus.instance.emit('mind:say', { petId: pet.id, text: PetMind.instance.say(pet, ctx) });
       play('happy');
-    }, 900);
+    }, 1200);
   }
 
   private showNewPet(): void {
@@ -258,6 +276,7 @@ export class App {
           <button class="btn btn-sm" data-act="ff6">+6 horas</button>
           <button class="btn btn-sm" data-act="ff24">+1 día real</button>
           <button class="btn btn-sm" data-act="coins">+1000 🪙 +20 ⭐</button>
+          <button class="btn btn-sm" data-act="dbg-adult">Hacer adulta</button>
         </details>` : ''}
         <p class="hint center settings-version">Patitas v${esc(String(import.meta.env.VITE_APP_VERSION ?? ''))} · SoulDeveloperCompany</p>`,
       buttons: [{ label: 'Cerrar', act: 'close', primary: true }],
@@ -380,6 +399,16 @@ export class App {
       case 'ff24':
         ff(24);
         break;
+      case 'dbg-adult': {
+        // Solo pruebas/capturas: edad de adulta y necesidades cubiertas
+        const p = PetManager.instance.selected;
+        if (p) {
+          p.data.ageDays = Math.max(p.data.ageDays, 7.02);
+          Object.assign(p.data.stats, { happiness: 92, hunger: 12, energy: 90, hygiene: 92, health: 100 });
+          ff(0.01);
+        }
+        break;
+      }
       case 'coins':
         EconomySystem.instance.addCoins(1000);
         EconomySystem.instance.addStars(20);

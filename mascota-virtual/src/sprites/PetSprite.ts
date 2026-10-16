@@ -99,7 +99,7 @@ function path(d: string, fill: string, o = '', extra = ''): string {
 /** Ojos según el estado de ánimo (los ojos abiertos parpadean con CSS). */
 function eyes(c: Ctx, lx: number, rx: number, y: number, r = 6): string {
   const open = !['happy', 'sleeping', 'tired', 'sick'].includes(c.mood);
-  return `<g class="pet-eyes${open ? ' blink' : ''}">${eyeShapes(c, lx, rx, y, r)}</g>`;
+  return `<g class="pet-gaze"><g class="pet-eyes${open ? ' blink' : ''}">${eyeShapes(c, lx, rx, y, r)}</g></g>`;
 }
 
 function eyeShapes(c: Ctx, lx: number, rx: number, y: number, r: number): string {

@@ -1,6 +1,7 @@
 /**
  * Tipos base del Sistema de Mascota: especies, sexo, etapas y stats.
  */
+import type { PetMindData } from './PetMind';
 
 /**
  * Especies incluidas de serie. La lógica trabaja con `speciesId: string`
@@ -167,4 +168,6 @@ export interface PetData {
   favoriteFood: string | null;
   /** Meses de edad ya celebrados (cumpleaños cada 30 días). */
   birthdayMonths: number;
+  /** Lo que ha aprendido de ti (ver systems/pet/PetMind.ts). Se crea solo en partidas antiguas. */
+  mind?: PetMindData;
 }

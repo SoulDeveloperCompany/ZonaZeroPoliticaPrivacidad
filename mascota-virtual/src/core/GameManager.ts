@@ -19,6 +19,7 @@ import { BondSystem } from '../systems/pet/BondSystem';
 import { CollectionSystem } from '../systems/breeding/CollectionSystem';
 import { Community } from '../systems/online/Community';
 import { StoreService } from '../systems/economy/StoreService';
+import { PetMind } from '../systems/pet/PetMind';
 import { GameConfig } from './GameConfig';
 
 /** Si entre dos ticks pasa más que esto, se considera tiempo offline (app en segundo plano). */
@@ -44,6 +45,7 @@ export class GameManager {
     MissionSystem.instance.start();
     Analytics.instance.start();
     BondSystem.instance.start();
+    PetMind.instance.start();
     CollectionSystem.instance.start();
     Community.instance.start();
     void StoreService.instance.start();

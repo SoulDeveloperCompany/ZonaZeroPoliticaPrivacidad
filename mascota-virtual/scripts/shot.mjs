@@ -75,14 +75,9 @@ for (const step of steps) {
         break;
       }
       case 'coins': await debug('coins'); break;
-      case 'adult':
-        await debug('coins', 2);
-        await page.click('.nav-btn[data-id="shop"]');
-        await page.click('.tab[data-id="accelerator"]');
-        for (let i = 0; i < 15; i++) await page.click('[data-act="buy"][data-id="acc_growth_vitamin"]');
-        await page.click('.nav-btn[data-id="home"]');
-        await page.click('[data-act="backpack"]');
-        for (let i = 0; i < 15; i++) await page.click('.item-card[data-id="acc_growth_vitamin"]');
+      case 'adult': // botón de pruebas "Hacer adulta" (las vitaminas tienen límite diario)
+        await debug('dbg-adult');
+        await page.waitForTimeout(400);
         await closeAll();
         break;
       case 'ff': await debug('ff1', Number(arg)); break;

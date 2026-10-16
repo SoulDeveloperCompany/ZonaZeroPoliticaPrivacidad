@@ -16,7 +16,7 @@ import { GrowthSystem } from '../../systems/growth/GrowthSystem';
 import { InteractionSystem, describeFailure } from '../../systems/interaction/InteractionSystem';
 import { PetManager } from '../../systems/pet/PetManager';
 import type { Pet } from '../../systems/pet/Pet';
-import { STAT_KEYS, STAT_LABELS, type PetStatKey } from '../../systems/pet/PetTypes';
+import { GrowthStage, STAT_KEYS, STAT_LABELS, type PetStatKey } from '../../systems/pet/PetTypes';
 import {
   STAT_HELP,
   STAT_ICONS,
@@ -41,6 +41,7 @@ import { Share } from '@capacitor/share';
 import { OnlineConfig } from '../../core/OnlineConfig';
 import { Analytics } from '../../systems/online/Analytics';
 import { hasIcon, icon } from '../icons';
+import { PetMind } from '../../systems/pet/PetMind';
 import { showModal, showToast } from '../Overlay';
 
 /** Partículas que acompañan a cada animación. */
@@ -98,6 +99,12 @@ export class HomeScreen implements Screen {
       bus.on('economy:purchase', rerender),
       bus.on('interaction:performed', (e) => this.feedback(e.animation, e.deltas, e.message, e.coinsFound)),
       bus.on('pet:statsChanged', () => this.tick()),
+      bus.on('mind:say', ({ petId, text }) => petId === this.pet?.id && this.speak(text)),
+      bus.on('mind:word', ({ petId, word }) => petId === this.pet?.id && this.speak(`¡${word.charAt(0).toUpperCase()}${word.slice(1)}! ✨`)),
+      bus.on('mind:learned', ({ petId }) => {
+        const pet = this.pet;
+        if (pet && petId === pet.id) setTimeout(() => this.speak(PetMind.instance.say(pet, 'learned')), 1500);
+      }),
       bus.on('pet:sleepChanged', () => this.tick()),
     ];
     this.render();
@@ -143,43 +150,127 @@ export class HomeScreen implements Screen {
       wrap.style.setProperty('--walk-x', `${Math.round(target)}px`);
       setTimeout(() => sprite.classList.remove('walking'), 1700);
     } else {
-      const [cls, idea] = this.chooseIdle(pet);
-      sprite.classList.add(cls);
-      if (idea) this.think(wrap, idea);
-      setTimeout(() => sprite.classList.remove(cls), 1600);
+      const b = PetMind.instance.chooseBehavior(pet);
+      sprite.classList.add(b.cls);
+      // A veces habla por iniciativa propia (lo que necesita, lo que siente o un recuerdo)
+      const words = Math.random() < 0.28 ? PetMind.instance.chatter(pet) : null;
+      if (words) this.speak(words);
+      else if (b.idea) this.think(wrap, b.idea);
+      setTimeout(() => sprite.classList.remove(b.cls), 1600);
     }
   }
 
-  /**
-   * Elige qué hace en reposo según lo que necesita, su carácter y el vínculo (Auditoría P8):
-   * con hambre mira el cuenco, sucia pide baño, aburrida trae la pelota, con vínculo alto te busca.
-   */
-  private chooseIdle(pet: Pet): [string, string | null] {
-    if (pet.isDrowsy) return ['idle-yawn', '💤'];
-    const s = pet.stats;
-    const bond = pet.data.bond;
-    const prefs = new Set(pet.data.traits.flatMap((t) => getTrait(t)?.idle ?? []));
-    const options: [string, string | null, number][] = [
-      ['idle-hop', null, 1], ['idle-tilt', null, 1], ['idle-look', null, 1], ['idle-wiggle', null, 1],
-    ];
-    const add = (id: string, cls: string, idea: string | null, w: number) => options.push([cls, idea, w + (prefs.has(id) ? 1.5 : 0)]);
-    if (s.hunger > 60) add('bowl', 'idle-look', '🍖', 3);
-    else if (prefs.has('bowl') && s.hunger > 35) add('bowl', 'idle-look', '🍖', 0.5);
-    if (s.hygiene < 40) add('scratch', 'idle-wiggle', '🫧', 2);
-    if (s.happiness < 50 && s.energy > 30) add('ball', 'idle-hop', '🎾', 2);
-    else if (prefs.has('ball')) add('ball', 'idle-hop', '🎾', 0.3);
-    if (bond >= 20) add('love', 'idle-hop', '💕', bond / 40);
-    if (bond >= 60 && pet.data.tricks.length > 0) add('trick', 'anim-spin', '⭐', 1);
-    if (prefs.has('peek') && bond < 40) add('peek', 'idle-tilt', '👀', 0.5);
-    if (prefs.has('sniff')) add('sniff', 'idle-look', '🔍', 0.5);
-    if (prefs.has('pose') && Object.keys(pet.data.equipped).length > 0) add('pose', 'anim-pose', '✨', 0.5);
-    const total = options.reduce((t, o) => t + o[2], 0);
-    let r = Math.random() * total;
-    for (const [cls, idea, w] of options) {
-      r -= w;
-      if (r <= 0) return [cls, idea];
+  /** Bocadillo de habla (frases de PetMind). */
+  private speak(text: string): void {
+    const wrap = this.root.querySelector<HTMLElement>('.pet-stage-wrap');
+    if (!wrap || !text) return;
+    wrap.querySelector('.thought')?.remove();
+    wrap.querySelector('.speech')?.remove();
+    const t = document.createElement('span');
+    t.className = 'speech';
+    t.textContent = text;
+    wrap.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  // ---------- Caricias: tocar la cabeza, hacer cosquillas en la barriga, acariciar arrastrando ----------
+
+  private touch = { down: false, x: 0, y: 0, dist: 0, stroked: false };
+  private taps: number[] = [];
+
+  private bindTouch(): void {
+    const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
+    const home = this.root.querySelector<HTMLElement>('.home');
+    if (!sprite || !home) return;
+    sprite.addEventListener('pointerdown', (e) => {
+      this.touch = { down: true, x: e.clientX, y: e.clientY, dist: 0, stroked: false };
+    });
+    home.addEventListener('pointermove', (e) => {
+      this.gaze(e.clientX, e.clientY);
+      if (!this.touch.down) return;
+      this.touch.dist += Math.hypot(e.clientX - this.touch.x, e.clientY - this.touch.y);
+      this.touch.x = e.clientX;
+      this.touch.y = e.clientY;
+      if (this.touch.dist > 60) {
+        this.touch.dist = 0;
+        this.onStroke();
+      }
+    });
+    const end = (e: PointerEvent) => {
+      if (!this.touch.down) return;
+      this.touch.down = false;
+      if (!this.touch.stroked && sprite.contains(e.target as Node)) this.onTap(e.clientY);
+    };
+    home.addEventListener('pointerup', end);
+    home.addEventListener('pointercancel', () => (this.touch.down = false));
+  }
+
+  /** Sus ojos siguen tu dedo. */
+  private gaze(x: number, y: number): void {
+    const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
+    if (!sprite) return;
+    const r = sprite.getBoundingClientRect();
+    const clamp = (v: number, m: number) => Math.max(-m, Math.min(m, v));
+    sprite.style.setProperty('--gx', `${clamp(((x - (r.left + r.width / 2)) / r.width) * 8, 4)}px`);
+    sprite.style.setProperty('--gy', `${clamp(((y - (r.top + r.height * 0.4)) / r.height) * 6, 3)}px`);
+  }
+
+  private onTap(clientY: number): void {
+    const pet = this.pet;
+    const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
+    if (!pet?.isActive || !sprite) return;
+    // Tocarla mientras duerme la despierta (y se enfada un poco)
+    if (pet.data.sleeping) {
+      InteractionSystem.instance.wakeUp(pet.id);
+      return;
     }
-    return ['idle-hop', null];
+    const now = Date.now();
+    this.taps = [...this.taps.filter((t) => now - t < 1500), now];
+    if (this.taps.length >= 6) {
+      this.taps = [];
+      this.react('anim-dizzy', '💫');
+      this.speak(PetMind.instance.say(pet, 'dizzy'));
+      return;
+    }
+    const r = sprite.getBoundingClientRect();
+    this.caress(pet, (clientY - r.top) / r.height < 0.45 ? 'head' : 'belly');
+  }
+
+  private onStroke(): void {
+    const pet = this.pet;
+    if (!pet?.isActive || pet.data.sleeping) return;
+    const first = !this.touch.stroked;
+    this.touch.stroked = true;
+    this.particle('💕');
+    if (first) this.caress(pet, 'head');
+  }
+
+  /** Una caricia: cuidado real (si toca) + refuerzo de lo que acaba de hacer + reacción. */
+  private caress(pet: Pet, zone: 'head' | 'belly'): void {
+    const learned = PetMind.instance.reward(pet);
+    if (!InteractionSystem.instance.check(pet, 'pet', Clock.now())) InteractionSystem.instance.perform(pet.id, 'pet');
+    else this.react(zone === 'head' ? 'idle-hop' : 'idle-wiggle', zone === 'head' ? '💕' : '😆');
+    if (!learned && Math.random() < 0.55) this.speak(PetMind.instance.say(pet, zone));
+  }
+
+  /** Reacción solo visual (sin tocar las necesidades). */
+  private react(cls: string, particle: string): void {
+    const sprite = this.root.querySelector<HTMLElement>('.pet-sprite');
+    if (!sprite) return;
+    sprite.classList.remove(cls);
+    void sprite.offsetWidth;
+    sprite.classList.add(cls);
+    setTimeout(() => sprite.classList.remove(cls), 1100);
+    this.particle(particle);
+  }
+
+  private particle(p: string): void {
+    const fx = this.root.querySelector<HTMLElement>('.fx-layer');
+    if (!fx) return;
+    const node = el('span', 'particle', p);
+    node.style.left = `${35 + Math.random() * 30}%`;
+    fx.appendChild(node);
+    setTimeout(() => node.remove(), 1800);
   }
 
   /** Bocadillo de pensamiento sobre la mascota durante un momento. */
@@ -239,7 +330,7 @@ export class HomeScreen implements Screen {
         <button class="stats-btn missions-btn" data-act="missions" aria-label="Misiones">${icon('missions')}<span class="missions-badge" hidden></span></button>
         <button class="stats-btn share-btn" data-act="share" aria-label="Compartir">${icon('share')}</button>
         <div class="need-bubble" hidden></div>
-        <div class="pet-stage-wrap"><div class="pet-sprite" data-act="pet-touch"></div></div>
+        <div class="pet-stage-wrap"><div class="pet-sprite"></div></div>
         <div class="fx-layer"></div>
         ${pet.isEscaped ? this.escapedHTML(pet) : `<div class="dock">${actions}
           <button class="dock-btn" data-act="backpack"><span class="dock-icon">${icon('backpack')}</span><span class="dock-name">Mochila</span></button></div>
@@ -255,7 +346,23 @@ export class HomeScreen implements Screen {
           <p class="hint sheet-hint"></p>
         </div>
       </div>`;
+    this.bindTouch();
     this.tick();
+  }
+
+  /** "Lo que ha aprendido de ti" (PetMind). */
+  private mindHTML(pet: Pet): string {
+    const m = PetMind.instance.summary(pet);
+    const foods = (ids: string[]) => ids.map((id) => DataRegistry.instance.getItem(id)).map((i) => `${i.icon} ${esc(i.name)}`).join(', ');
+    const baby = pet.stage === GrowthStage.Baby;
+    return `<div class="mind-box"><b>🧠 Lo que ${esc(pet.name)} ha aprendido de ti</b>
+      <p>💬 ${m.words.length ? `Sabe decir: ${m.words.map((w) => `<span class="word-chip">${esc(w)}</span>`).join(' ')}` : baby ? 'Aún es bebé: solo hace ruiditos. Pronto aprenderá palabras de lo que hagan juntos.' : 'Aprende palabras de lo que hacen juntos: comer, jugar, pasear…'}</p>
+      <p>💡 ${m.learned.length ? `Sabe que te encanta que ${esc(m.learned.join(', '))}.` : 'Acaríciala justo después de que haga algo que te guste y lo repetirá más.'}</p>
+      ${m.usualHour !== null ? `<p>⏰ Sabe que sueles venir sobre las ${m.usualHour}:00 y te espera.</p>` : ''}
+      ${m.tastes.love.length ? `<p>😋 Le encanta: ${foods(m.tastes.love)}</p>` : ''}
+      ${m.tastes.dislike.length ? `<p>😖 No le gusta: ${foods(m.tastes.dislike)}</p>` : ''}
+      ${!m.tastes.love.length && !m.tastes.dislike.length ? '<p class="hint">🍽️ Dale a probar comidas distintas para descubrir sus gustos.</p>' : ''}
+    </div>`;
   }
 
   private furnitureHTML(): string {
@@ -331,7 +438,8 @@ export class HomeScreen implements Screen {
       const html = `<div class="bond-row"><span>💞 Vínculo</span><div class="bar"><div class="bar-fill bond-fill" style="width:${pet.data.bond.toFixed(0)}%"></div></div><b>${pet.data.bond.toFixed(0)}</b></div>
         <p class="hint">${esc(BondSystem.textFor(nivel))} Sube con cuidados variados y nunca baja.</p>
         <div class="trait-chips">${pet.data.traits.map((t) => getTrait(t)).filter(Boolean).map((t) => `<span class="trait-chip" title="${esc(t!.description)}">${t!.icon} ${esc(t!.name)}</span>`).join('')}
-        ${fav ? `<span class="trait-chip">${fav.icon} Le encanta: ${esc(fav.name)}</span>` : ''}</div>`;
+        ${fav ? `<span class="trait-chip">${fav.icon} Su comida de siempre: ${esc(fav.name)}</span>` : ''}</div>
+        ${this.mindHTML(pet)}`;
       if (bondBox.dataset.html !== html) {
         bondBox.innerHTML = html;
         bondBox.dataset.html = html;
@@ -431,12 +539,6 @@ export class HomeScreen implements Screen {
         return;
       case 'close-tray':
         this.toggleTray(false);
-        return;
-      case 'pet-touch':
-        if (!pet?.isActive) return;
-        // Tocarla mientras duerme la despierta (y se enfada); si no, la acaricia
-        if (pet.data.sleeping) InteractionSystem.instance.wakeUp(pet.id);
-        else InteractionSystem.instance.perform(pet.id, 'pet');
         return;
       case 'action':
         if (pet) this.doAction(pet, t.dataset.id!);

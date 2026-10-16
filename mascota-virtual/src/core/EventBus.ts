@@ -21,6 +21,11 @@ export interface GameEvents {
   'pet:returnedHome': { petId: string; name: string };
   'pet:bondMilestone': { petId: string; level: number };
   'pet:birthday': { petId: string; months: number };
+  /** La mascota dice algo (bocadillo en Casa). */
+  'mind:say': { petId: string; text: string };
+  /** Aprendió que te gusta una conducta / una palabra nueva. */
+  'mind:learned': { petId: string; text: string };
+  'mind:word': { petId: string; word: string };
   /** Al cargar se usó la copia de respaldo ('backup') o no se pudo recuperar nada ('none'). */
   'save:recovered': { from: 'backup' | 'none' };
   'pet:removed': { petId: string };
