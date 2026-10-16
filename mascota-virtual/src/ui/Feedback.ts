@@ -6,7 +6,7 @@
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { GameState } from '../core/GameState';
 
-export type SoundId = 'tap' | 'eat' | 'pet' | 'bubble' | 'splash' | 'coin' | 'level' | 'happy' | 'error' | 'camera';
+export type SoundId = 'tap' | 'eat' | 'pet' | 'bubble' | 'splash' | 'coin' | 'level' | 'happy' | 'error' | 'camera' | 'jump' | 'hurt' | 'land' | 'fever';
 
 let ctx: AudioContext | null = null;
 function audio(): AudioContext | null {
@@ -66,7 +66,23 @@ const SOUNDS: Record<SoundId, () => void> = {
   happy: () => { tone(660, 0.1, { type: 'triangle' }); tone(880, 0.16, { type: 'triangle', delay: 0.1 }); },
   error: () => tone(180, 0.18, { type: 'sawtooth', gain: 0.05 }),
   camera: () => noise(0.12, 3000, 0.1),
+  jump: () => tone(330, 0.16, { type: 'triangle', to: 660, gain: 0.08 }),
+  hurt: () => { tone(200, 0.2, { type: 'square', to: 90, gain: 0.06 }); noise(0.15, 500, 0.08); },
+  land: () => noise(0.06, 700, 0.06),
+  fever: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.12, { type: 'square', gain: 0.04, delay: i * 0.06 })),
 };
+
+/** Nota de acierto que sube de tono con el combo (escala mayor). */
+export function blip(n: number): void {
+  if (!settings().sound) return;
+  const scale = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19];
+  const step = scale[Math.min(n - 1, scale.length - 1)] ?? 0;
+  try {
+    tone(523 * Math.pow(2, step / 12), 0.09, { type: 'triangle', gain: 0.08 });
+  } catch {
+    /* sin audio */
+  }
+}
 
 function settings() {
   return GameState.instance.data.settings;

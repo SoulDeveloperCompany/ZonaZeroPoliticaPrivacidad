@@ -8,6 +8,8 @@
 import type { MinigameType } from '../../data/types';
 import type { Pet } from '../../systems/pet/Pet';
 import { petSVG } from '../common';
+import { play } from '../Feedback';
+import { burst, shake } from './Juice';
 import { el, wait } from '../dom';
 
 export type Minigame = (stage: HTMLElement, pet: Pet) => Promise<number>;
@@ -30,7 +32,7 @@ const agility: Minigame = (stage, pet) =>
   new Promise((resolve) => {
     stage.innerHTML = `
       <div class="mg-hud"><span class="mg-score">0 / 0</span><span class="mg-help">Toca para saltar</span></div>
-      <div class="mg-track"><div class="mg-runner">${petSVG(pet, '', 'happy')}</div><div class="mg-ground"></div></div>`;
+      <div class="mg-track runner-track"><div class="parallax hills"></div><div class="parallax bushes"></div><div class="mg-runner">${petSVG(pet, '', 'happy')}</div><div class="mg-ground"></div></div>`;
     const track = stage.querySelector<HTMLElement>('.mg-track')!;
     const runner = stage.querySelector<HTMLElement>('.mg-runner')!;
     const hud = stage.querySelector<HTMLElement>('.mg-score')!;
@@ -47,26 +49,37 @@ const agility: Minigame = (stage, pet) =>
     let running = false;
     const obstacles: { node: HTMLElement; x: number; hit: boolean; done: boolean }[] = [];
 
+    let scroll = 0;
     const jump = () => {
-      if (running && jumpStart < 0) jumpStart = performance.now();
+      if (running && jumpStart < 0) {
+        jumpStart = performance.now();
+        play('jump');
+      }
     };
     stage.addEventListener('pointerdown', jump);
 
     const frame = (t: number) => {
-      if (!running) return;
+      if (!running || !stage.isConnected) return;
       const dt = last ? Math.min(50, t - last) : 16;
       last = t;
       const width = track.clientWidth;
       const speed = width * (0.42 + spawned * 0.015); // px/s, acelera poco a poco
 
-      // Salto parabólico
+      // Salto parabólico (se estira al subir y se aplasta al aterrizar)
       let height = 0;
       if (jumpStart >= 0) {
         const p = (t - jumpStart) / jumpTime;
-        if (p >= 1) jumpStart = -1;
-        else height = Math.sin(p * Math.PI) * 110;
+        if (p >= 1) {
+          jumpStart = -1;
+          burst(track, 60, track.clientHeight - 40, ['💨'], 3);
+          play('land');
+        } else height = Math.sin(p * Math.PI) * 110;
       }
-      runner.style.transform = `translateY(${-height}px)`;
+      const squash = jumpStart >= 0 ? 1 + Math.cos(((t - jumpStart) / jumpTime) * Math.PI) * 0.08 : 1;
+      runner.style.transform = `translateY(${-height}px) scale(${2 - squash}, ${squash})`;
+      scroll += (speed * dt) / 1000;
+      track.style.setProperty('--far', `${-scroll * 0.2}px`);
+      track.style.setProperty('--near', `${-scroll * 0.55}px`);
 
       // Generar obstáculos
       nextSpawn -= dt;
@@ -86,6 +99,8 @@ const agility: Minigame = (stage, pet) =>
         if (!o.hit && o.x < 92 && o.x > 30 && height < 40) {
           o.hit = true;
           o.node.classList.add('hit');
+          shake(track, true);
+          play('hurt');
           runner.classList.add('mg-hurt');
           setTimeout(() => runner.classList.remove('mg-hurt'), 300);
         }
