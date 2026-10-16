@@ -61,6 +61,6 @@ Si cambias el script más adelante: **Implementar › Gestionar implementaciones
 Sin hacer nada, el diario de la mascota lo escribe el propio juego (gratis).
 Para que lo escriba Claude: Apps Script › ⚙️ Configuración del proyecto › Propiedades del script ›
 añade `ANTHROPIC_API_KEY` (tu clave de https://console.anthropic.com). Opcional: `MODELO_IA`
-(por defecto `claude-opus-5-5`; `claude-haiku-5-5` cuesta mucho menos). Las denuncias de páginas llegan a la pestaña **Reportes**.
+(por defecto `claude-haiku-5-5`, unos 3 $ al mes por cada 1.000 jugadores; `claude-opus-5-5` escribe mejor pero cuesta ~40 veces más). Las denuncias de páginas llegan a la pestaña **Reportes**.
 Después de poner la clave, ejecuta una vez la función `probarIA` desde el editor (▶ Ejecutar) y acepta el permiso
 de "conectarse a un servicio externo"; en el registro verás una página de prueba escrita por la IA.

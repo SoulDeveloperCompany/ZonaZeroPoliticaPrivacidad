@@ -100,4 +100,4 @@ Solo aplica si añades `ANTHROPIC_API_KEY` en las Propiedades del script (ver `s
 2. **Seguridad de los datos**: "Actividad en apps › Otras acciones del usuario" se comparte con un proveedor de servicios
    (Anthropic) para "Funcionalidad de la app". No se envía texto escrito por el jugador.
 3. La política de privacidad ya lo explica (sección "La mascota que aprende y su diario", 16 oct 2026).
-4. Coste: cada página es una llamada corta; tope de 3 por jugador y día. Para gastar menos, pon `MODELO_IA = claude-haiku-5-5`.
+4. Coste: modelo por defecto Claude Haiku 5.5, ≈0,0001 $ por página (≈3 $/mes por cada 1.000 jugadores activos); tope de 3 páginas por jugador y día.

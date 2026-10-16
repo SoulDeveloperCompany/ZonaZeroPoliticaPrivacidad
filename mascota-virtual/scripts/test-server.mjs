@@ -125,7 +125,7 @@ ctx._iaRespuesta = { stop_reason: 'end_turn', content: [{ type: 'text', text: 'H
 const dia1 = post({ accion: 'diario', id: A, nombre: 'Toby', especie: 'dog', rasgos: ['gloton', '<script>'], registro: reg1 });
 check(dia1.ia === true && dia1.texto.startsWith('Hoy comí filete'), 'con clave devuelve la página escrita por la IA');
 const envio = JSON.parse(ctx._fetches[0].opts.payload);
-check(envio.model === 'claude-opus-5-5' && envio.fallbacks === 'default' && ctx._fetches[0].opts.headers['anthropic-beta'] === 'server-side-fallback-2026-07-01', 'usa el modelo por defecto con fallbacks');
+check(envio.model === 'claude-haiku-5-5' && !('fallbacks' in envio) && !ctx._fetches[0].opts.headers['anthropic-beta'], 'por defecto usa Haiku (barato) sin fallbacks');
 check(!JSON.stringify(envio).includes('<script>') && JSON.parse(envio.messages[0].content.slice(envio.messages[0].content.indexOf('{'))).rasgos.length === 1, 'solo envía datos del juego validados');
 ctx._iaRespuesta = { stop_reason: 'refusal', content: [] };
 check(post({ accion: 'diario', id: A, nombre: 'Toby', registro: reg1 }).ia === false, 'si la IA se niega, se usa el diario local');
@@ -135,6 +135,12 @@ const antes = ctx._fetches.length;
 check(post({ accion: 'diario', id: A, nombre: 'Toby', registro: reg1 }).ia === false && ctx._fetches.length === antes, 'como mucho 3 páginas con IA al día por jugador');
 check(post({ accion: 'diario', id: X, nombre: 'X', registro: reg1 }).ia === false, 'un jugador sin sincronizar no gasta IA');
 check(post({ accion: 'reportar', id: A, dia: '2026-10-16', texto: 'Hoy comí filete', motivo: 'ofensivo' }).ok && sheets.Reportes._rows.length === 2, 'las denuncias se guardan en la pestaña Reportes');
+ctx._props.MODELO_IA = 'claude-opus-5-5';
+post({ accion: 'diario', id: B, nombre: 'Luna', registro: reg1 });
+const ultimo = ctx._fetches[ctx._fetches.length - 1];
+const conOpus = JSON.parse(ultimo.opts.payload);
+check(conOpus.model === 'claude-opus-5-5' && conOpus.fallbacks === 'default' && ultimo.opts.headers['anthropic-beta'] === 'server-side-fallback-2026-07-01', 'con MODELO_IA = Opus añade el reintento en otro modelo');
+delete ctx._props.MODELO_IA;
 check(get({}).version === 4, 'el servidor dice version 4');
 
 console.log(ok ? '\nServidor OK' : '\nHAY FALLOS');

@@ -18,8 +18,8 @@
 // Diario con IA (OPCIONAL, cuesta dinero por uso): la mascota escribe su diario con Claude.
 //   Para activarlo: Apps Script › Configuración del proyecto › Propiedades del script ›
 //   añade ANTHROPIC_API_KEY con tu clave (https://console.anthropic.com). Sin clave, el juego
-//   escribe el diario él solo (gratis). Opcional: MODELO_IA (por defecto claude-opus-5-5;
-//   claude-haiku-5-5 es unas 40 veces más barato). Tope: DIARIOS_DIA páginas por jugador y día.
+//   escribe el diario él solo (gratis). Opcional: MODELO_IA (por defecto claude-haiku-5-5, ≈0,0001 $ por página;
+//   claude-opus-5-5 escribe mejor pero cuesta unas 40 veces más). Tope: DIARIOS_DIA páginas por jugador y día.
 //
 // Protección contra trampas (el juego decide las monedas en el móvil, así que el servidor pone topes):
 //   precio de adopción ≤ PRECIO_MAX · tarifa de pareja entre TARIFA_MIN y TARIFA_MAX
@@ -400,24 +400,27 @@ function diario_(d) {
     'en primera persona, en español neutro, tierna y con humor suave, de 2 a 4 frases (máximo 70 palabras) y como mucho 2 emojis. ' +
     'Usa solo los hechos que te dan; no inventes personas, lugares ni sucesos. Llama a quien te cuida "mi persona". ' +
     'No menciones que eres una IA ni hables de temas sensibles. Responde solo con el texto de la página.';
+  const modelo = PropertiesService.getScriptProperties().getProperty('MODELO_IA') || 'claude-haiku-5-5';
+  const cuerpo = {
+    model: modelo,
+    max_tokens: 2000,
+    output_config: { effort: 'low' },
+    system: sistema,
+    messages: [{ role: 'user', content: 'Hechos del día (JSON): ' + JSON.stringify(hechos) }],
+  };
+  const cabeceras = { 'x-api-key': clave, 'anthropic-version': '2023-06-01' };
+  // Haiku no tiene reintento en otro modelo; Opus/Sonnet sí: si se niega, Anthropic prueba con el modelo recomendado
+  if (modelo.indexOf('haiku') < 0) {
+    cuerpo.fallbacks = 'default';
+    cabeceras['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+  }
   try {
     const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
       method: 'post',
       contentType: 'application/json',
       muteHttpExceptions: true,
-      headers: {
-        'x-api-key': clave,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'server-side-fallback-2026-07-01',
-      },
-      payload: JSON.stringify({
-        model: PropertiesService.getScriptProperties().getProperty('MODELO_IA') || 'claude-opus-5-5',
-        max_tokens: 2000,
-        output_config: { effort: 'low' },
-        fallbacks: 'default',
-        system: sistema,
-        messages: [{ role: 'user', content: 'Hechos del día (JSON): ' + JSON.stringify(hechos) }],
-      }),
+      headers: cabeceras,
+      payload: JSON.stringify(cuerpo),
     });
     if (res.getResponseCode() !== 200) return { ok: true, ia: false };
     const m = JSON.parse(res.getContentText());
